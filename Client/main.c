@@ -122,7 +122,14 @@ ACTION control(line* l) {
     return a;
 }
 
+void clear_grid(board* b, int x, int y) {
+    set_grid(b, x, y, 0);
+}
+
 bool perform_action(board* b, pos* p, ACTION a) {
+    // Efface l'ancienne position du joueur
+    clear_grid(b, p->x, p->y);
+
     int xd = 0;
     int yd = 0;
     switch (a) {
@@ -139,9 +146,9 @@ bool perform_action(board* b, pos* p, ACTION a) {
         default: break;
     }
     p->x += xd; p->y += yd;
-    p->x = (p->x + b->largeur)%b->largeur;
-    p->y = (p->y + b->hauteur)%b->hauteur;
-    set_grid(b,p->x,p->y,1);
+    p->x = (p->x + b->largeur) % b->largeur;
+    p->y = (p->y + b->hauteur) % b->hauteur;
+    set_grid(b, p->x, p->y, 1);
     return false;
 }
 
