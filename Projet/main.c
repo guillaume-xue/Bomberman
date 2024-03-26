@@ -7,7 +7,7 @@
 
 #define TEXT_SIZE 255
 
-typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, QUIT } ACTION;
+#include "data.h"
 
 typedef struct board {
     char* grid;
