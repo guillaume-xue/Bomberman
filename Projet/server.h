@@ -15,14 +15,20 @@ typedef struct {
   int nb_joueurs;
   int partie_id;
   int mode_jeu;
+
+  int socket_udp;
   char adresse_multicast[INET6_ADDRSTRLEN];
   int port_udp;
 } Partie;
 
 int ask_game_mode(int client_socket);
 enum colors get_color(int x);
-void add_player(int p_id, int t_num, int sock_c, int index);
+int add_player(int p_id, int t_num, int sock_c, int index);
 void add_partie(int client_socket, int mode_jeu);
 void join_or_create(int client_socket, int mode_jeu);
 void handle_client(int client_socket);
 int ask_game_mode(int client_socket);
+int init_multicast_socket();
+void send_multicast_message();
+void x_client_left(int x, int client_socket);
+int send_udp_info_to_client(int index_player);

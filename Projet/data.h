@@ -6,6 +6,8 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <time.h>
+#include <net/if.h>
+
 
 #define TCP_PORT 8080
 #define UDP_PORT 9000
