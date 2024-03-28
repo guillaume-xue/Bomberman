@@ -26,8 +26,7 @@ typedef struct pos {
 } pos;
 
 void setup_board(board* board) {
-    int lines; int columns;
-    getmaxyx(stdscr,lines,columns);
+    int lines = 22; int columns = 51;
     board->hauteur = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
     board->largeur = columns - 2; // 2 columns reserved for border
     board->grid = calloc((board->largeur)*(board->hauteur),sizeof(char));
@@ -57,6 +56,12 @@ void refresh_game(board* b, line* l) {
                     break;
                 case 1:
                     c = 'O';
+                    break;
+                case 2:
+                    c = 'U';
+                    break;
+                case 3:
+                    c = 'B';
                     break;
                 default:
                     c = '?';
@@ -152,6 +157,14 @@ bool perform_action(board* b, pos* p, ACTION a) {
     return false;
 }
 
+void setup_wall(board* b) {
+    for (int i = 1; i < b->largeur; i+=2) {
+        for (int j = 1; j < b->hauteur; j+=2) {
+            set_grid(b, i, j, 2);
+        }
+    }
+}
+
 int main()
 {
     board* b = malloc(sizeof(board));;
@@ -173,6 +186,7 @@ int main()
 
     setup_board(b);
     while (true) {
+        setup_wall(b);
         ACTION a = control(l);
         if (perform_action(b, p, a)) break;
         refresh_game(b,l);
