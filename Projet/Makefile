@@ -13,4 +13,4 @@ server: server.c
 	$(CC) $(CFLAGS) server server.c
 
 clean:
-	rm -f main client server
+	rm -f main client server grid
