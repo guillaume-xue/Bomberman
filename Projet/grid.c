@@ -1,27 +1,18 @@
 // Build with -lncurses option
- #include "grid.h"
- 
-#define TEXT_SIZE 255
 
-typedef struct board {
-    char* grid;
-    int largeur;
-    int hauteur;
-} board;
+#include <ncurses.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include "config.h"
+#include "grid.h"
 
-typedef struct line {
-    char data[TEXT_SIZE];
-    int cursor;
-} line;
+typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, QUIT } ACTION;
 
-typedef struct pos {
-    int x;
-    int y;
-} pos;
+bool is_wall(board* b, int x, int y);
 
 void setup_board(board* board) {
-    int lines; int columns;
-    getmaxyx(stdscr,lines,columns);
+    int lines = 22; int columns = 51;
     board->hauteur = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
     board->largeur = columns - 2; // 2 columns reserved for border
     board->grid = calloc((board->largeur)*(board->hauteur),sizeof(char));
@@ -51,6 +42,12 @@ void refresh_game(board* b, line* l) {
                     break;
                 case 1:
                     c = 'O';
+                    break;
+                case 2:
+                    c = 'U';
+                    break;
+                case 3:
+                    c = 'B';
                     break;
                 default:
                     c = '?';
@@ -126,24 +123,61 @@ bool perform_action(board* b, pos* p, ACTION a) {
 
     int xd = 0;
     int yd = 0;
+
+    bool collision = false;
+
     switch (a) {
         case LEFT:
+            collision = is_wall(b, p->x-1, p->y);
             xd = -1; yd = 0; break;
         case RIGHT:
+            collision = is_wall(b, p->x+1, p->y);
             xd = 1; yd = 0; break;
         case UP:
+            collision = is_wall(b, p->x, p->y-1);
             xd = 0; yd = -1; break;
         case DOWN:
+            collision = is_wall(b, p->x, p->y+1);
             xd = 0; yd = 1; break;
         case QUIT:
             return true;
         default: break;
     }
-    p->x += xd; p->y += yd;
-    p->x = (p->x + b->largeur) % b->largeur;
-    p->y = (p->y + b->hauteur) % b->hauteur;
-    set_grid(b, p->x, p->y, 1);
+
+    if (!collision) {
+        // On bouge
+        p->x += xd; p->y += yd;
+        p->x = (p->x + b->largeur) % b->largeur;
+        p->y = (p->y + b->hauteur) % b->hauteur;
+        set_grid(b, p->x, p->y, 1);
+    }
+
     return false;
+}
+
+// Place les murs sur la grille
+void setup_wall(board* b) {
+    // On met des murs incassables sur les cases impaires
+    for (int i = 1; i < b->largeur; i+=2) {
+        for (int j = 1; j < b->hauteur; j+=2) {
+            set_grid(b, i, j, 2);
+        }
+    }
+    // On met des murs cassables aléatoirement
+    int i = 0;
+    while (i < NB_WALLS) {
+        int x = rand() % b->largeur;
+        int y = rand() % b->hauteur;
+        if (get_grid(b, x, y) != 1 && get_grid(b, x, y) != 2 && get_grid(b, x, y) != 3){
+            set_grid(b, x, y, 3);
+            i++;
+        }
+    }
+}
+
+// Retourne vrai si la case est un mur
+bool is_wall(board* b, int x, int y) {
+    return get_grid(b, x, y) == 2 || get_grid(b, x, y) == 3 ;
 }
 
 int grid_creation()
@@ -166,6 +200,8 @@ int grid_creation()
     init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is yellow, background is black)
 
     setup_board(b);
+    setup_wall(b);
+
     while (true) {
         ACTION a = control(l);
         if (perform_action(b, p, a)) break;
@@ -182,6 +218,3 @@ int grid_creation()
     return 0;
 }
 
-int main(){
-    grid_creation();
-}

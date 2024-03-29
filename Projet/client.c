@@ -41,10 +41,10 @@ int main() {
 
   // Lancement du mode de jeu après le choix 
   if(game_mode == 1){
-     
+      grid_creation();
   }
   else{
-
+    printf("Multiplayer");
   }
 
   return 0;

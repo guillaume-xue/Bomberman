@@ -1,16 +1,14 @@
 CC=gcc
-CFLAGS=-Wall -o
+CFLAGS=-Wall
+LIBS=-lcurses
 
-all: grid client server
+all: client server
 
-grid: grid.c
-	$(CC) $(CFLAGS) grid grid.c	-lcurses
+client: client.c client.h grid.c grid.h config.h
+	$(CC) $(CFLAGS) -o client grid.c client.c $(LIBS)
 
-client: client.c
-	$(CC) $(CFLAGS) client client.c
-
-server: server.c
-	$(CC) $(CFLAGS) server server.c
+server: server.c server.h 
+	$(CC) $(CFLAGS) -o server server.c $(LIBS)
 
 clean:
 	rm -f client server grid

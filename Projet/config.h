@@ -11,5 +11,4 @@
 #define UDP_PORT 9000
 #define SIZE_MSG 1024
 
-typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, QUIT } ACTION;
-enum colors { GREEN, YELLOW, MAGENTA, CYAN };
+//
