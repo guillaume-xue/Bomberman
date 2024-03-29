@@ -1,10 +1,10 @@
 CC=gcc
 CFLAGS=-Wall -o
 
-all: main client server
+all: grid client server
 
-main: main.c
-	$(CC) $(CFLAGS) main main.c	-lcurses
+grid: grid.c
+	$(CC) $(CFLAGS) grid grid.c	-lcurses
 
 client: client.c
 	$(CC) $(CFLAGS) client client.c
@@ -13,4 +13,4 @@ server: server.c
 	$(CC) $(CFLAGS) server server.c
 
 clean:
-	rm -f main client server
+	rm -f client server grid

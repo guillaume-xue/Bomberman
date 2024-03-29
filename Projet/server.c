@@ -43,29 +43,6 @@ void join_or_create(int client_socket, int mode_jeu) {
 //   send_multicast_message(index_partie - 1);
 }
 
-// a faire plus tard
-// void send_multicast_message(int partie_index) {
-//   int fd;
-//   struct sockaddr_in6 group_addr;
-
-//   fd = socket(AF_INET6, SOCK_DGRAM, 0);
-//   if (fd < 0) {
-//     perror("socket");
-//     return;
-//   }
-
-//   memset(&group_addr, 0, sizeof(group_addr));
-//   group_addr.sin6_family = AF_INET6;
-//   group_addr.sin6_port = htons(parties[partie_index].port_udp);
-//   inet_pton(AF_INET6, parties[partie_index].adresse_multicast, &group_addr.sin6_addr);
-
-//   if (sendto(fd, message, strlen(message), 0, (struct sockaddr*)&group_addr, sizeof(group_addr)) < 0) {
-//     perror("sendto");
-//   }
-
-//   close(fd);
-// }
-
 
 void handle_client(int client_socket) {
   int mode_jeu = ask_game_mode(client_socket);

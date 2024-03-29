@@ -1,7 +1,7 @@
 #define MAX_CLIENTS 4
 #define MAX_PARTIES 4
 
-#include "data.h"
+#include "config.h"
 
 typedef struct {
   int player_id;

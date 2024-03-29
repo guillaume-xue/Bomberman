@@ -1,5 +1,4 @@
 #include "client.h"
-#include "data.h"
 
 int main() {
   int client_socket = socket(AF_INET6, SOCK_STREAM, 0);
@@ -40,32 +39,13 @@ int main() {
     exit(EXIT_FAILURE);
   }
 
-  // PARTIE : Multicast
-//   int fd = socket(AF_INET6, SOCK_DGRAM, 0);
-//   if (fd < 0) {
-//     perror("socket");
-//     exit(EXIT_FAILURE);
-//   }
+  // Lancement du mode de jeu après le choix 
+  if(game_mode == 1){
+     
+  }
+  else{
 
-//   struct sockaddr_in6 addr;
-//   memset(&addr, 0, sizeof(addr));
-//   addr.sin6_family = AF_INET6;
-//   addr.sin6_addr = in6addr_any;
-//   addr.sin6_port = htons(
-
-//   if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-//     perror("bind");
-//     exit(EXIT_FAILURE);
-//   }
-
-//   struct ipv6_mreq group;
-//   inet_pton(AF_INET6, "ff02::1:ffXX", &group.ipv6mr_multiaddr);
-//   group.ipv6mr_interface = 0;
-//   if (setsockopt(fd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &group, sizeof(group)) <
-//       0) {
-//     perror("setsockopt");
-//     exit(EXIT_FAILURE);
-//   }
+  }
 
   return 0;
 }
