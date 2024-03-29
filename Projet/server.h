@@ -2,7 +2,7 @@
 #define MAX_PARTIES 4
 
 #include "config.h"
-
+#include "grid.h"
 typedef struct {
   int player_id;
   int team_number;
