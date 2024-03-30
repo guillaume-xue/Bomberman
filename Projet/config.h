@@ -10,5 +10,3 @@
 #define TCP_PORT 8080
 #define UDP_PORT 9000
 #define SIZE_MSG 1024
-
-//

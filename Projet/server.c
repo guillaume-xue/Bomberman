@@ -1,11 +1,27 @@
 #include "server.h"
+#include "client.h"
 
 #define MAX_PARTIES 4
 
-// variables globales
 Partie parties[MAX_PARTIES];
 int index_partie = 0;
-// variables globales
+
+enum colors get_color(int x) {
+  switch (x % 4) {
+  case 0:
+    return GREEN;
+  case 1:
+    return YELLOW;
+  case 2:
+    return MAGENTA;
+  case 3:
+    return CYAN;
+
+  default:
+    return GREEN;
+  }
+}
+
 
 void add_player(int p_id, int t_num, int sock_c, int index) {
   int x = parties[index].nb_joueurs;
@@ -38,42 +54,21 @@ void join_or_create(int client_socket, int mode_jeu) {
       return;
     }
   }
-
   add_partie(client_socket, mode_jeu);
 //   send_multicast_message(index_partie - 1);
 }
 
 
 void handle_client(int client_socket) {
-  int mode_jeu = ask_game_mode(client_socket);
-
-  int tmp = index_partie;
-  join_or_create(client_socket, mode_jeu);
-  if (tmp != index_partie)
-    tmp = index_partie - 1;
-
-  char buf[SIZE_MSG];
-  memset(buf, 0, sizeof(buf));
-
-  int our_player = parties[tmp].nb_joueurs - 1;
-  snprintf(buf, SIZE_MSG, "%s,%d", parties[tmp].adresse_multicast,
-           parties[tmp].port_udp);
-}
-
-enum colors get_color(int x) {
-  switch (x % 4) {
-  case 0:
-    return GREEN;
-  case 1:
-    return YELLOW;
-  case 2:
-    return MAGENTA;
-  case 3:
-    return CYAN;
-
-  default:
-    return GREEN;
-  }
+    GameMessage received_message;
+    // Réception du message depuis le client
+    if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
+        perror("La réception du message a échoué");
+        exit(EXIT_FAILURE);
+    }
+    printf("Message reçu :\n");
+    printf("CODEREQ : %s !!\n", received_message.CODEREQ);
+  
 }
 
 int ask_game_mode(int client_socket) {
@@ -124,7 +119,7 @@ int main() {
 
   printf("Serveur démarré, en attente de connexions...\n");
 
-  // Acceptation des connexions
+  // Acceptation des connexions 
   socklen_t addr_len = sizeof(client_addr);
   while (1) {
     client_socket =
@@ -134,9 +129,9 @@ int main() {
       exit(EXIT_FAILURE);
     }
 
-    // Traitement du client dans un nouveau thread
     handle_client(client_socket);
-    close(client_socket);
+    
+    //close(client_socket);
   }
 
   close(server_socket);
