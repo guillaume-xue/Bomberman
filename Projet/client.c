@@ -1,13 +1,12 @@
 #include "client.h"
 
 // Fonction pour envoyer une demande de jeu au serveur
-void send_game_request(int client_socket, char* CODEREQ) {
+void send_game_request(int client_socket, int CODEREQ) {
      GameMessage request;
     memset(&request, 0, sizeof(GameMessage));
-    
-    snprintf(request.CODEREQ, sizeof(request.CODEREQ), "%s", CODEREQ);
+    request.CODEREQ = CODEREQ;
 
-    printf("CODEREQ : %s \n", request.CODEREQ);
+    printf("CODEREQ : %d \n", request.CODEREQ);
     if (send(client_socket, &request, sizeof(GameMessage), 0) < 0) {
         perror("L'envoi de la demande de jeu a échoué");
         exit(EXIT_FAILURE);
@@ -18,23 +17,7 @@ void send_game_request(int client_socket, char* CODEREQ) {
 
 // Fonction pour envoyer un message de chat au serveur
 void send_chat_message(int client_socket, char* CODEREQ, short ID, char EQ, char *message) {
-     GameMessage message_packet;
-    strncpy(message_packet.CODEREQ, CODEREQ, sizeof(message_packet.CODEREQ));
-    message_packet.ID = htons(ID);
-    message_packet.EQ = EQ;
-
-    // Envoi de la longueur du message
-    size_t message_length = strlen(message);
-    if (send(client_socket, &message_length, sizeof(message_length), 0) < 0) {
-        perror("L'envoi de la longueur du message a échoué");
-        exit(EXIT_FAILURE);
-    }
-
-    // Envoi du message
-    if (send(client_socket, message, message_length, 0) < 0) {
-        perror("L'envoi du message de chat a échoué");
-        exit(EXIT_FAILURE);
-    }
+  
 }
 
 // Fonction pour recevoir les messages du serveur
@@ -90,8 +73,7 @@ int main() {
       grid_creation();
   }
   else{
-      //char* mode = "2";
-      send_game_request(client_socket, "Notre");
+      send_game_request(client_socket, 2);
   } 
 
   return 0;

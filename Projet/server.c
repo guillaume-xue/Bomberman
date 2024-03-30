@@ -67,7 +67,7 @@ void handle_client(int client_socket) {
         exit(EXIT_FAILURE);
     }
     printf("Message reçu :\n");
-    printf("CODEREQ : %s !!\n", received_message.CODEREQ);
+    printf("CODEREQ : %d !!\n", received_message.CODEREQ);
   
 }
 
