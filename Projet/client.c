@@ -1,5 +1,18 @@
 #include "client.h"
 
+void subscribe_multicast(int client_socket, uint16_t port_m_diff, char* adresse_m_diff) {
+    struct sockaddr_in6 multicast_addr;
+    memset(&multicast_addr, 0, sizeof(multicast_addr));
+    multicast_addr.sin6_family = AF_INET6;
+    multicast_addr.sin6_port = htons(port_m_diff);
+    inet_pton(AF_INET6, adresse_m_diff, &multicast_addr.sin6_addr);
+
+    if (connect(client_socket, (struct sockaddr *)&multicast_addr, sizeof(multicast_addr)) < 0) {
+        perror("La connexion à l'adresse de multidiffusion a échoué");
+        exit(EXIT_FAILURE);
+    }
+}
+
 // Fonction pour envoyer une demande de jeu au serveur
 void send_game_request(int client_socket, int CODEREQ) {
      GameMessage request;
@@ -12,21 +25,37 @@ void send_game_request(int client_socket, int CODEREQ) {
         exit(EXIT_FAILURE);
     }
     printf(" Message envoyé \n"); 
+
+    // Attente de la réponse du server pour avoir toutes les informations nécessaires sur la partie 
+    ServerMessage mess_serv;
+    ssize_t bytes_received = recv(client_socket, &mess_serv, sizeof(ServerMessage), 0);
+
+    if (bytes_received < 0) {
+        perror("La réception des informations du serveur a échoué");
+        exit(EXIT_FAILURE);
+    } else if (bytes_received == 0) {
+        printf("Le serveur a fermé la connexion\n");
+    } else {
+        printf("Informations reçues du serveur :\n");
+        printf("Code de requête : %d\n", mess_serv.code_req);
+        printf("ID : %d\n", mess_serv.id);
+        printf("Équipe : %d\n", mess_serv.eq);
+        printf("Port UDP : %d\n", mess_serv.port_udp);
+        printf("Port de multidiffusion : %d\n", mess_serv.port_m_diff);
+        printf("Adresse de multidiffusion : %s\n", mess_serv.adr_m_diff);
+    }
+
+    printf("Fin\n");
 }
 
-
-// Fonction pour envoyer un message de chat au serveur
-void send_chat_message(int client_socket, char* CODEREQ, short ID, char EQ, char *message) {
-  
-}
-
-// Fonction pour recevoir les messages du serveur
-void receive_message(int client_socket, void *buffer, size_t buffer_size) {
-    if (recv(client_socket, buffer, buffer_size, 0) < 0) {
-        perror("La réception du message a échoué");
+void send_ready_message(int client_socket) {
+    char ready_message[] = "READY";
+    if (send(client_socket, ready_message, sizeof(ready_message), 0) < 0) {
+        perror("L'envoi du message 'READY' a échoué");
         exit(EXIT_FAILURE);
     }
 }
+
 
 int main() {
   int client_socket = socket(AF_INET6, SOCK_STREAM, 0);
@@ -74,6 +103,7 @@ int main() {
   }
   else{
       send_game_request(client_socket, 2);
+
   } 
 
   return 0;

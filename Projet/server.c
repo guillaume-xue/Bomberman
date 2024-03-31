@@ -1,5 +1,4 @@
 #include "server.h"
-#include "client.h"
 
 #define MAX_PARTIES 4
 
@@ -22,6 +21,34 @@ enum colors get_color(int x) {
   }
 }
 
+// Fonction pour envoyer les informations de la partie au joueur
+void send_game_info(int client_socket, Partie* game) {
+    ServerMessage server_message;
+    server_message.code_req = game->mode_jeu;
+    server_message.id = game->joueurs[game->nb_joueurs - 1].player_id;
+    server_message.eq = (game->mode_jeu == 2) ? game->joueurs[game->nb_joueurs - 1].team_number : -1;
+    server_message.port_udp = game->port_udp;
+    server_message.port_m_diff = game->port_multicast; 
+    //server_message.adr_m_diff = game->adresse_multicast; 
+    strncpy(server_message.adr_m_diff, game->adresse_multicast, strlen(game->adresse_multicast));
+
+    // Affichage des informations envoyées
+    printf("Informations envoyées au client :\n");
+    printf("Code de la requête : %d\n", server_message.code_req);
+    printf("ID du joueur : %d\n", server_message.id);
+    printf("Équipe du joueur : %d\n", server_message.eq);
+    printf("Port UDP du serveur : %d\n", server_message.port_udp);
+    printf("Port de multidiffusion du serveur : %d\n", server_message.port_m_diff);
+    printf("Adresse de multidiffusion du serveur : %s\n", server_message.adr_m_diff);
+
+
+    if (send(client_socket, &server_message, sizeof(ServerMessage), 0) < 0) {
+        perror("L'envoi des informations de la partie a échoué");
+        exit(EXIT_FAILURE);
+    }
+    printf("Les informations pour le jeu ont été envoyé aux clients \n");
+}
+
 
 void add_player(int p_id, int t_num, int sock_c, int index) {
   int x = parties[index].nb_joueurs;
@@ -35,16 +62,24 @@ void add_player(int p_id, int t_num, int sock_c, int index) {
 
 void add_partie(int client_socket, int mode_jeu) {
   parties[index_partie].partie_id = index_partie;
-  parties[index_partie].mode_jeu = mode_jeu;
+
+  parties[index_partie].mode_jeu = (mode_jeu == 2) ? 10 : 9;
+  
   add_player((index_partie * 4), mode_jeu, client_socket,
              index_partie); // fois 4 pour avoir des id uniques
   parties[index_partie].nb_joueurs = 1;
   parties[index_partie].port_udp = UDP_PORT + index_partie;
+
   snprintf(parties[index_partie].adresse_multicast,
-           sizeof(parties[index_partie].adresse_multicast), "ff02::1:ff%02x",
+           sizeof(parties[index_partie].adresse_multicast), "ff02::%x",
            index_partie + 1);
 
+  parties[index_partie].port_multicast = MULTICAST_PORT + index_partie;
+
   index_partie++;
+
+  // envoyer ces informations aux clients 
+  send_game_info(client_socket,&(parties[index_partie]));
 }
 
 void join_or_create(int client_socket, int mode_jeu) {
@@ -55,7 +90,6 @@ void join_or_create(int client_socket, int mode_jeu) {
     }
   }
   add_partie(client_socket, mode_jeu);
-//   send_multicast_message(index_partie - 1);
 }
 
 
@@ -68,23 +102,8 @@ void handle_client(int client_socket) {
     }
     printf("Message reçu :\n");
     printf("CODEREQ : %d !!\n", received_message.CODEREQ);
-  
-}
 
-int ask_game_mode(int client_socket) {
-  int player_choice;
-
-  puts("Attente du choix du joueur pour le mode de jeu");
-
-  if (recv(client_socket, &player_choice, sizeof(player_choice), 0) < 0) {
-    perror("La réception de la demande de mode de jeu a échoué");
-    exit(EXIT_FAILURE);
-  }
-
-  printf("Le joueur a choisi le mode de jeu : `%s`\n",
-         player_choice == 1 ? "multiplayer" : "singleplayer");
-
-  return player_choice;
+    join_or_create(client_socket,received_message.CODEREQ);
 }
 
 int main() {
