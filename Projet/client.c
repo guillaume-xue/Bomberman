@@ -49,6 +49,8 @@ void choose_game_mode() {
     }
   }
 
+  puts("\n\n\n\n");
+
   if (send(tcp_socket, &game_mode, sizeof(game_mode), 0) < 0) {
     perror("L'envoi du mode de jeu a échoué");
     exit(EXIT_FAILURE);
@@ -60,14 +62,14 @@ void *handle_udp(void *arg) {
   char buf[SIZE_MSG];
   memset(buf, 0, sizeof(buf));
 
-  sprintf(buf, "%sJoueur %d prêt pour la partie%s", color, player_id,
-          "\033[0m");
+  snprintf(buf, SIZE_MSG, "%d,%d", player_id, team_number);
   if (sendto(udp_socket, buf, strlen(buf), 0, (struct sockaddr *)&udp_send_addr,
              sizeof(udp_send_addr)) < 0) {
     perror("L'envoi du message de prêt a échoué");
     exit(EXIT_FAILURE);
   }
 
+  puts("En attente de la partie pour commencer");
   if (team_number == 1) {
     printf("%sJe suis le joueur %d, et je suis prêt pour le 1v3%s\n", color,
            player_id, "\033[0m");
@@ -77,6 +79,7 @@ void *handle_udp(void *arg) {
   }
 
   while (1) {
+    memset(buf, 0, sizeof(buf));
     ssize_t received = recv(from_server, buf, SIZE_MSG, 0);
     if (received < 0) {
       perror("La réception de l'adresse et du port UDP a échoué");
@@ -87,6 +90,20 @@ void *handle_udp(void *arg) {
     } else {
       printf("Message reçu : %s\n", buf);
     }
+  }
+}
+
+char *str_to_color(char *str) {
+  if (strcmp(str, "green") == 0) {
+    return "\033[0;32m";
+  } else if (strcmp(str, "yellow") == 0) {
+    return "\033[0;33m";
+  } else if (strcmp(str, "magenta") == 0) {
+    return "\033[0;35m";
+  } else if (strcmp(str, "cyan") == 0) {
+    return "\033[0;36m";
+  } else {
+    return "\033[0m";
   }
 }
 
@@ -109,11 +126,23 @@ void suscribe_multicast() {
     printf("La connexion TCP a été fermée par le serveur.\n");
     exit(EXIT_SUCCESS); // Ou gérer la fermeture selon l'application
   } else {
-    if (sscanf(buf, "%d,%d,%d,%d,%s,%s", &player_id, &team_number,
-               &multicast_port, &partie_port, multicast_addr, color) != 6) {
-      fprintf(stderr, "Erreur lors de l'extraction des informations\n");
-      exit(EXIT_FAILURE);
-    }
+    char *token = strtok(buf, ",");
+    player_id = atoi(token);
+
+    token = strtok(NULL, ",");
+    team_number = atoi(token);
+
+    token = strtok(NULL, ",");
+    multicast_port = atoi(token);
+
+    token = strtok(NULL, ",");
+    partie_port = atoi(token);
+
+    token = strtok(NULL, ",");
+    strcpy(multicast_addr, token);
+
+    token = strtok(NULL, ",");
+    color = str_to_color(token);
   }
 
   // Maintenant on se connecte en UDP à la partie
@@ -172,6 +201,7 @@ void suscribe_multicast() {
   *x = udp_socket;
   pthread_t thread;
   pthread_create(&thread, NULL, handle_udp, (void *)x);
+  pthread_join(thread, NULL);
 }
 
 int main() {

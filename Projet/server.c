@@ -4,7 +4,7 @@
 
 // variables globales
 Partie parties[MAX_PARTIES];
-int index_partie = 0;
+int nb_partie = 0;
 
 pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_partie = PTHREAD_COND_INITIALIZER;
@@ -22,12 +22,28 @@ void init_mutex() {
   }
 }
 
+void init_parties() {
+  for (int i = 0; i < MAX_PARTIES; i++) {
+    parties[i].partie_id = i;
+    parties[i].mode_jeu = -1; // Utilisez -1 ou toute autre valeur invalide pour
+                              // indiquer qu'une partie n'est pas active
+    parties[i].nb_joueurs = 0;
+    parties[i].listen_sock =
+        -1; // Socket non valide pour indiquer qu'aucune n'est encore attribuée
+    parties[i].send_sock =
+        -1; // Socket non valide pour indiquer qu'aucune n'est encore attribuée
+
+    memset(&parties[i].partie_addr, 0, sizeof(parties[i].partie_addr));
+    memset(&parties[i].multicast_addr, 0, sizeof(parties[i].multicast_addr));
+  }
+}
+
 void *handle_partie(void *arg) {
   Partie *partie = (Partie *)arg;
   char buf[SIZE_MSG];
-  memset(buf, 0, sizeof(buf));
 
   while (1) {
+    memset(buf, 0, sizeof(buf));
     ssize_t received = recv(partie->listen_sock, buf, SIZE_MSG, 0);
     if (received < 0) {
       perror("La réception de l'adresse et du port UDP a échoué");
@@ -59,22 +75,25 @@ void *handle_partie(void *arg) {
       perror("L'envoi du message de prêt a échoué");
       exit(EXIT_FAILURE);
     }
+    puts("Message envoyé");
   }
 }
 
-void add_partie(int client_socket, int mode_jeu) {
-  parties[index_partie].nb_joueurs = 0;
-  parties[index_partie].partie_id = index_partie;
+void add_partie(int client_socket, int mode_jeu, int index_partie) {
   parties[index_partie].mode_jeu = mode_jeu;
-  parties[index_partie].nb_joueurs = 0;
+
   parties[index_partie].listen_sock = client_socket;
-  parties->partie_addr.sin6_family = AF_INET6;
-  parties->partie_addr.sin6_port = htons(TCP_PORT + parties->partie_id);
-  inet_pton(AF_INET6, "::1", &parties->partie_addr.sin6_addr);
+
+  parties[index_partie].partie_addr.sin6_family = AF_INET6;
+  parties[index_partie].partie_addr.sin6_port = htons(TCP_PORT + index_partie);
+  inet_pton(AF_INET6, "::1", &parties[index_partie].partie_addr.sin6_addr);
+
   init_multicast_socket(&parties[index_partie]);
 
-  pthread_create(&parties[index_partie].thread_partie, NULL, handle_partie,
-                 (void *)&parties[index_partie]);
+  add_player(&parties[index_partie]);
+
+  // pthread_create(&parties[nb_partie].thread_partie, NULL, handle_partie,
+  //                (void *)&parties[nb_partie]);
 }
 
 void init_multicast_socket(Partie *partie) {
@@ -87,8 +106,7 @@ void init_multicast_socket(Partie *partie) {
   memset(&partie->multicast_addr, 0, sizeof(partie->multicast_addr));
   partie->multicast_addr.sin6_family = AF_INET6;
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
-
-  char multicast_group[40];
+  char multicast_group[INET6_ADDRSTRLEN];
   snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x",
            partie->partie_id + 1);
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
@@ -108,26 +126,38 @@ void init_multicast_socket(Partie *partie) {
   }
 }
 
-void join_or_create(int client_socket, int mode_jeu) {
-  for (int i = index_partie; i >= 0; i--) {
-    if (parties[i].mode_jeu == mode_jeu && parties[i].nb_joueurs < 4) {
-      int x = ++parties[i].nb_joueurs;
-      send_suscribe_info(x - 1);
-      // if (x == 4)
-      //   send_multicast_message();
+void add_player(Partie *partie) {
+  partie->nb_joueurs++;
+  send_suscribe_info(partie->nb_joueurs, partie->listen_sock,
+                     partie->partie_id);
+}
 
-      return;
+int join_or_create(int client_socket, int mode_jeu) {
+  pthread_mutex_lock(&mutex_partie);
+
+  for (int i = 0; i < nb_partie; i++) {
+    if (parties[i].mode_jeu != -1) {
+      if (parties[i].mode_jeu == mode_jeu && parties[i].nb_joueurs < 4) {
+        add_player(&parties[i]);
+        pthread_mutex_unlock(&mutex_partie);
+        return i;
+      }
     }
   }
 
-  pthread_mutex_lock(&mutex_partie);
-  index_partie++;
-  add_partie(client_socket, mode_jeu);
-  pthread_mutex_lock(&mutex_partie);
+  if (nb_partie < MAX_PARTIES) {
+    add_partie(client_socket, mode_jeu, nb_partie);
+    nb_partie++;
+  } else {
+    // envoyer un signal pour que ya plus de place dans la partie
+  }
+
+  pthread_mutex_unlock(&mutex_partie);
+  return nb_partie - 1; // retourne l'index de la partie
 }
 
-int send_suscribe_info(int index_player) {
-  int player_id = (index_player * 4) + parties[index_partie].nb_joueurs;
+int send_suscribe_info(int index_player, int client_socket, int index_partie) {
+  int player_id = (index_player * nb_partie) + parties[index_partie].nb_joueurs;
   int team_number;
   if (parties[index_partie].mode_jeu == 1) {
     team_number = 1;
@@ -145,10 +175,16 @@ int send_suscribe_info(int index_player) {
   memset(buf, 0, sizeof(buf));
   snprintf(buf, SIZE_MSG, "%d,%d,%d,%d,%s,%s", player_id, team_number,
            multicast_port, partie_port, multicast_addr, color);
-  if (send(*(tab_socket[index_partie]), buf, strlen(buf), 0) < 0) {
+  buf[strlen(buf)] = '\0';
+
+  if (send(client_socket, buf, strlen(buf), 0) < 0) {
     perror("L'envoi des informations de souscription a échoué");
     exit(EXIT_FAILURE);
   }
+
+  printf("**Informations d'abonnement envoyées au joueur %d de la partie "
+         "n.%d**\n\n",
+         player_id, index_partie);
 
   return 0;
 }
@@ -171,7 +207,22 @@ void *handle_client(void *arg) {
 
   int mode_jeu = recv_mode(client_socket);
 
-  join_or_create(client_socket, mode_jeu);
+  int index_partie = join_or_create(client_socket, mode_jeu);
+
+  char buf[SIZE_MSG];
+  memset(buf, 0, sizeof(buf));
+
+  if (recv(parties[index_partie].listen_sock, buf, SIZE_MSG, 0) < 0) {
+    perror("La réception de l'adresse et du port UDP a échoué");
+    exit(EXIT_FAILURE);
+  }
+
+  int id_player, team_number;
+
+  sscanf(buf, "%d,%d", &id_player, &team_number);
+  printf("Le joueur %d de la partie n.%d a rejoint l'équipe %d ET EST dès à "
+         "présent pret a commencer une partie.\n\n",
+         id_player, index_partie, team_number);
 
   return NULL;
 }
@@ -179,29 +230,30 @@ void *handle_client(void *arg) {
 char *get_color(int x) {
   switch (x % 4) {
   case 0:
-    return "\033[0;32m";
+    return "yellow";
   case 1:
-    return "\033[0;33m";
+    return "green";
   case 2:
-    return "\033[0;35m";
+    return "cyan";
   case 3:
-    return "\033[0;36m";
+    return "magenta";
   }
 
-  return "\033[0m";
+  return "white";
 }
 
 int recv_mode(int client_socket) {
   int player_choice;
 
-  puts("Attente du choix du joueur pour le mode de jeu");
+  puts("Attente du choix du joueur pour le mode de jeu\n");
 
   if (recv(client_socket, &player_choice, sizeof(player_choice), 0) < 0) {
     perror("La réception de la demande de mode de jeu a échoué");
     exit(EXIT_FAILURE);
   }
 
-  printf("Le joueur a choisi le mode de jeu : %s\n",
+  printf(" -->  Le joueur qui vient de rejoindre a choisi le mode de jeu : "
+         "%s\n\n\n",
          (player_choice == 1 ? "1v3" : "2v2"));
 
   return player_choice;
@@ -233,18 +285,19 @@ int main() {
     exit(EXIT_FAILURE);
   }
 
-  printf("Serveur démarré, en attente de connexions...\n");
+  printf("Serveur démarré, en attente de connexions...\n\n");
 
   socklen_t addr_len = sizeof(client_addr);
   while (1) {
-    tab_socket[index_partie] = malloc(sizeof(int));
-    *(tab_socket[index_partie]) =
+    tab_socket[nb_partie] = malloc(sizeof(int));
+    *(tab_socket[nb_partie]) =
         accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
 
-    if (*(tab_socket[index_partie]) >= 0) {
+    if (*(tab_socket[nb_partie]) >= 0) {
+      printf("Connexion acceptée\n\n");
       pthread_t thread_client;
       pthread_create(&thread_client, NULL, handle_client,
-                     tab_socket[index_partie]);
+                     tab_socket[nb_partie]);
     }
 
     // handle_client(tab_socket);
