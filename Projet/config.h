@@ -6,7 +6,10 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <time.h>
+#include <net/if.h>
+#include <pthread.h>
+
 
 #define TCP_PORT 8080
-#define UDP_PORT 9000
+#define MULTICAST_PORT 9000
 #define SIZE_MSG 1024

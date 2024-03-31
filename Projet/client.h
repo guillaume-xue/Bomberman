@@ -3,8 +3,8 @@
 
 #include "config.h"
 #include "grid.h"
-#include "server.h" // Inclusion de server.h
-//#include "server.h"
+#include "server.h" 
+
 
 typedef struct {
     int CODEREQ; 

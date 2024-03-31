@@ -1,8 +1,8 @@
 CC=gcc
 CFLAGS=-Wall
-LIBS=-lcurses
+LIBS=-lcurses -lpthread
 
-all: client server
+all: client server 
 
 client: client.c client.h grid.c grid.h config.h
 	$(CC) $(CFLAGS) -o client grid.c client.c $(LIBS)

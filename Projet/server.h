@@ -7,23 +7,20 @@
 
 #define MAX_CLIENTS 4
 #define MAX_PARTIES 4
-#define MULTICAST_PORT 10000
 
 typedef struct {
-  int player_id;
-  int team_number;
-  int socket_client;
-  enum colors color;
-} Joueur;
-
-typedef struct {
-  Joueur joueurs[MAX_CLIENTS];
   int nb_joueurs;
   int partie_id;
   int mode_jeu;
-  char adresse_multicast[INET6_ADDRSTRLEN];
-  int port_udp;
-  int port_multicast;
+
+  pthread_t thread_partie;  // thread pour gérer la partie, afin de pas bloquer le serveur
+
+  int send_sock;  // sock pour envoyer des messages multicast aux clients
+  struct sockaddr_in6 multicast_addr; // adresse multicast
+
+  int listen_sock;  // sock sur lequel on écoute les messages des clients
+  struct sockaddr_in6 partie_addr;  // adresse de la partie
+
 } Partie;
 
 typedef struct {
@@ -35,13 +32,18 @@ typedef struct {
   char adr_m_diff[INET6_ADDRSTRLEN];
 } ServerMessage;
 
+char *get_color(int x);
 
-enum colors get_color(int x);
-void send_game_info(int client_socket, Partie* game);
-void add_player(int p_id, int t_num, int sock_c, int index);
-void add_partie(int client_socket, int mode_jeu);
-void join_or_create(int client_socket, int mode_jeu);
-void handle_client(int client_socket);
-int ask_game_mode(int client_socket);
+void init_mutex();
+void init_parties();
+void add_player(Partie *partie);
+void add_partie(int client_socket, int mode_jeu, int index_partie);
+int join_or_create(int client_socket, int mode_jeu);
+void *handle_client(void *arg);
+int recv_mode(int client_socket);
+void x_client_left(int x, int client_socket);
+void init_multicast_socket(Partie *partie);
+
+void send_game_s_info(int client_socket, int id_player, int id_partie );
 
 #endif
