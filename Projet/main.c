@@ -26,7 +26,17 @@ typedef struct pos {
     int y;
 } pos;
 
+typedef struct bomb {
+    int x;
+    int y;
+    int timer;
+    bool posed;
+} bomb;
+
+bomb* bombe;
 bool is_wall(board* b, int x, int y);
+bool is_movable(board* b, int x, int y);
+bool is_bomb(board* b, int x, int y);
 
 void setup_board(board* board) {
     int lines = 22; int columns = 51;
@@ -65,6 +75,9 @@ void refresh_game(board* b, line* l) {
                     break;
                 case 3:
                     c = 'B';
+                    break;
+                case 4:
+                    c = 'X';
                     break;
                 default:
                     c = '?';
@@ -117,6 +130,8 @@ ACTION control(line* l) {
             a = UP; break;
         case KEY_DOWN:
             a = DOWN; break;
+        case 'b':
+            a = BOMB; break;
         case '~':
             a = QUIT; break;
         case KEY_BACKSPACE:
@@ -141,35 +156,47 @@ bool perform_action(board* b, pos* p, ACTION a) {
     int xd = 0;
     int yd = 0;
 
-    bool collision = false;
-
     switch (a) {
         case LEFT:
-            collision = is_wall(b, p->x-1, p->y);
             xd = -1; yd = 0; break;
         case RIGHT:
-            collision = is_wall(b, p->x+1, p->y);
             xd = 1; yd = 0; break;
         case UP:
-            collision = is_wall(b, p->x, p->y-1);
             xd = 0; yd = -1; break;
         case DOWN:
-            collision = is_wall(b, p->x, p->y+1);
             xd = 0; yd = 1; break;
+        case BOMB:
+            bombe->posed = true;
+            break;
         case QUIT:
             return true;
         default: break;
     }
 
-    if (!collision) {
+    p->x += xd;
+    p->y += yd;
+
+    if (bombe->posed) {
+        set_grid(b, bombe->x, bombe->y, 4);
+    }else{
+        bombe->x = p->x;
+        bombe->y = p->y;
+    }
+
+    if(is_movable(b, p->x + xd, p->y + yd)){
         // On bouge
-        p->x += xd; p->y += yd;
-        p->x = (p->x + b->largeur) % b->largeur;
-        p->y = (p->y + b->hauteur) % b->hauteur;
         set_grid(b, p->x, p->y, 1);
     }
 
     return false;
+}
+
+bool is_movable(board* b, int x, int y) {
+    return x >= 0 && x < b->largeur && y >= 0 && y < b->hauteur && !is_wall(b, x, y) && !is_bomb(b, x, y);
+}
+
+bool is_bomb(board* b, int x, int y) {
+    return get_grid(b, x, y) == 3;
 }
 
 // Place les murs sur la grille
@@ -204,6 +231,8 @@ int main()
     l->cursor = 0;
     pos* p = malloc(sizeof(pos));
     p->x = 0; p->y = 0;
+    bombe = malloc(sizeof(bomb));
+    bombe->x = 0; bombe->y = 0; bombe->timer = 3; bombe->posed = false;
 
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
     initscr(); /* Start curses mode */
@@ -231,6 +260,7 @@ int main()
     endwin(); /* End curses mode */
 
     free(p); free(l); free(b);
+    free(bombe);
 
     return 0;
 }
