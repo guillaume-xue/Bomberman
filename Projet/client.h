@@ -1,10 +1,8 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include "config.h"
 #include "grid.h"
 #include "server.h" 
-
 
 typedef struct {
     int CODEREQ; 
