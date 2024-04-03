@@ -1,220 +1,279 @@
 // Build with -lncurses option
 
+#include "grid.h"
+#include "config.h"
+
 #include <ncurses.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "config.h"
-#include "grid.h"
+#include <unistd.h>
 
 typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, QUIT } ACTION;
 
-bool is_wall(board* b, int x, int y);
+bool is_wall(board *b, int x, int y);
 
-void setup_board(board* board) {
-    int lines = 22; int columns = 51;
-    board->hauteur = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
-    board->largeur = columns - 2; // 2 columns reserved for border
-    board->grid = calloc((board->largeur)*(board->hauteur),sizeof(char));
+void setup_board(board *board) {
+  int lines = 22;
+  int columns = 51;
+  board->hauteur = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
+  board->largeur = columns - 2;   // 2 columns reserved for border
+  board->grid = calloc((board->largeur) * (board->hauteur), sizeof(char));
 }
 
-void free_board(board* board) {
-    free(board->grid);
+void free_board(board *board) {
+  free(board->grid);
+  free(board->bombs);
 }
 
-int get_grid(board* b, int x, int y) {
-    return b->grid[(y*b->largeur) + x];
+int get_grid(board *b, int x, int y) { return b->grid[(y * b->largeur) + x]; }
+
+void set_grid(board *b, int x, int y, int v) {
+  b->grid[y * b->largeur + x] = v;
 }
 
-void set_grid(board* b, int x, int y, int v) {
-    b->grid[y*b->largeur + x] = v;
+void refresh_game(board *b, line *l) {
+  // Update grid
+  int x, y;
+
+  for (y = 0; y < b->hauteur; y++) {
+    for (x = 0; x < b->largeur; x++) {
+      char c;
+      switch (get_grid(b, x, y)) {
+      case 0:
+        c = ' ';
+        break;
+      case 1:
+        c = 'O'; // Par exemple, votre joueur ou un autre élément
+        break;
+      case 2:
+        c = '#'; // Un mur incassable
+        break;
+      case 3:
+        c = 'X'; // Un mur cassable
+        break;
+      case BOMB:
+        c = '*'; // Symbole pour représenter la bombe
+        break;
+      default:
+        c = '?';
+        break;
+      }
+      mvaddch(y + 1, x + 1, c);
+    }
+  }
+
+  for (x = 0; x < b->largeur + 2; x++) {
+    mvaddch(0, x, '-');
+    mvaddch(b->hauteur + 1, x, '-');
+  }
+  for (y = 0; y < b->hauteur + 2; y++) {
+    mvaddch(y, 0, '|');
+    mvaddch(y, b->largeur + 1, '|');
+  }
+  // Update chat text
+  attron(COLOR_PAIR(1)); // Enable custom color 1
+  attron(A_BOLD);        // Enable bold
+  for (x = 0; x < b->largeur + 2; x++) {
+    if (x >= TEXT_SIZE || x >= l->cursor)
+      mvaddch(b->hauteur + 2, x, ' ');
+    else
+      mvaddch(b->hauteur + 2, x, l->data[x]);
+  }
+  attroff(A_BOLD);        // Disable bold
+  attroff(COLOR_PAIR(1)); // Disable custom color 1
+  refresh();              // Apply the changes to the terminal
 }
 
-void refresh_game(board* b, line* l) {
-    // Update grid
-    int x,y;
-    for (y = 0; y < b->hauteur; y++) {
-        for (x = 0; x < b->largeur; x++) {
-            char c;
-            switch (get_grid(b,x,y)) {
-                case 0:
-                    c = ' ';
-                    break;
-                case 1:
-                    c = 'O';
-                    break;
-                case 2:
-                    c = 'U';
-                    break;
-                case 3:
-                    c = 'B';
-                    break;
-                default:
-                    c = '?';
-                    break;
-            }
-            mvaddch(y+1,x+1,c);
-        }
-    }
-    for (x = 0; x < b->largeur+2; x++) {
-        mvaddch(0, x, '-');
-        mvaddch(b->hauteur+1, x, '-');
-    }
-    for (y = 0; y < b->hauteur+2; y++) {
-        mvaddch(y, 0, '|');
-        mvaddch(y, b->largeur+1, '|');
-    }
-    // Update chat text
-    attron(COLOR_PAIR(1)); // Enable custom color 1
-    attron(A_BOLD); // Enable bold
-    for (x = 0; x < b->largeur+2; x++) {
-        if (x >= TEXT_SIZE || x >= l->cursor)
-            mvaddch(b->hauteur+2, x, ' ');
-        else
-            mvaddch(b->hauteur+2, x, l->data[x]);
-    }
-    attroff(A_BOLD); // Disable bold
-    attroff(COLOR_PAIR(1)); // Disable custom color 1
-    refresh(); // Apply the changes to the terminal
+void place_bomb(board *b, int x, int y) {
+  set_grid(b, x, y, BOMB);
+  bomb new_bomb = {x, y, 3};
+
+  if (b->nb_bombs % 10 == 0) {
+    b->bombs = realloc(b->bombs, (b->nb_bombs + 10) * sizeof(bomb));
+  }
+  b->bombs[b->nb_bombs++] = new_bomb;
 }
 
-ACTION control(line* l) {
-    int c;
-    int prev_c = ERR;
-    // We consume all similar consecutive key presses
-    while ((c = getch()) != ERR) { // getch returns the first key press in the queue
-        if (prev_c != ERR && prev_c != c) {
-            ungetch(c); // put 'c' back in the queue
-            break;
-        }
-        prev_c = c;
+ACTION control(line *l) {
+  int c;
+  int prev_c = ERR;
+  // We consume all similar consecutive key presses
+  while ((c = getch()) !=
+         ERR) { // getch returns the first key press in the queue
+    if (prev_c != ERR && prev_c != c) {
+      ungetch(c); // put 'c' back in the queue
+      break;
     }
-    ACTION a = NONE;
-    switch (prev_c) {
-        case ERR: break;
-        case KEY_LEFT:
-            a = LEFT; break;
-        case KEY_RIGHT:
-            a = RIGHT; break;
-        case KEY_UP:
-            a = UP; break;
-        case KEY_DOWN:
-            a = DOWN; break;
-        case '~':
-            a = QUIT; break;
-        case KEY_BACKSPACE:
-            if (l->cursor > 0) l->cursor--;
-            break;
-        default:
-            if (prev_c >= ' ' && prev_c <= '~' && l->cursor < TEXT_SIZE)
-                l->data[(l->cursor)++] = prev_c;
-            break;
-    }
-    return a;
+    prev_c = c;
+  }
+  ACTION a = NONE;
+  switch (prev_c) {
+  case ERR:
+    break;
+  case KEY_LEFT:
+    a = LEFT;
+    break;
+  case KEY_RIGHT:
+    a = RIGHT;
+    break;
+  case KEY_UP:
+    a = UP;
+    break;
+  case KEY_DOWN:
+    a = DOWN;
+    break;
+  case '~':
+    a = QUIT;
+    break;
+  case KEY_BACKSPACE:
+    if (l->cursor > 0)
+      l->cursor--;
+    break;
+  default:
+    if (prev_c >= ' ' && prev_c <= '~' && l->cursor < TEXT_SIZE)
+      l->data[(l->cursor)++] = prev_c;
+    break;
+  }
+  return a;
 }
 
-void clear_grid(board* b, int x, int y) {
-    set_grid(b, x, y, 0);
-}
+void clear_grid(board *b, int x, int y) { set_grid(b, x, y, 0); }
 
-bool perform_action(board* b, pos* p, ACTION a) {
-    // Efface l'ancienne position du joueur
-    clear_grid(b, p->x, p->y);
+bool perform_action(board *b, pos *p, ACTION a) {
+  // Efface l'ancienne position du joueur
+  clear_grid(b, p->x, p->y);
 
-    int xd = 0;
-    int yd = 0;
+  int xd = 0;
+  int yd = 0;
 
-    bool collision = false;
+  bool collision = false;
 
-    switch (a) {
-        case LEFT:
-            collision = is_wall(b, p->x-1, p->y);
-            xd = -1; yd = 0; break;
-        case RIGHT:
-            collision = is_wall(b, p->x+1, p->y);
-            xd = 1; yd = 0; break;
-        case UP:
-            collision = is_wall(b, p->x, p->y-1);
-            xd = 0; yd = -1; break;
-        case DOWN:
-            collision = is_wall(b, p->x, p->y+1);
-            xd = 0; yd = 1; break;
-        case QUIT:
-            return true;
-        default: break;
-    }
+  switch (a) {
+  case LEFT:
+    collision = is_wall(b, p->x - 1, p->y);
+    xd = -1;
+    yd = 0;
+    break;
+  case RIGHT:
+    collision = is_wall(b, p->x + 1, p->y);
+    xd = 1;
+    yd = 0;
+    break;
+  case UP:
+    collision = is_wall(b, p->x, p->y - 1);
+    xd = 0;
+    yd = -1;
+    break;
+  case DOWN:
+    collision = is_wall(b, p->x, p->y + 1);
+    xd = 0;
+    yd = 1;
+    break;
+  case QUIT:
+    return true;
+  default:
+    break;
+  }
 
-    if (!collision) {
-        // On bouge
-        p->x += xd; p->y += yd;
-        p->x = (p->x + b->largeur) % b->largeur;
-        p->y = (p->y + b->hauteur) % b->hauteur;
-        set_grid(b, p->x, p->y, 1);
-    }
+  if (!collision) {
+    // On bouge
+    p->x += xd;
+    p->y += yd;
+    p->x = (p->x + b->largeur) % b->largeur;
+    p->y = (p->y + b->hauteur) % b->hauteur;
+    set_grid(b, p->x, p->y, 1);
+  }
 
-    return false;
+  return false;
 }
 
 // Place les murs sur la grille
-void setup_wall(board* b) {
-    // On met des murs incassables sur les cases impaires
-    for (int i = 1; i < b->largeur; i+=2) {
-        for (int j = 1; j < b->hauteur; j+=2) {
-            set_grid(b, i, j, 2);
-        }
+void setup_wall(board *b) {
+  // On met des murs incassables sur les cases impaires
+  for (int i = 1; i < b->largeur; i += 2) {
+    for (int j = 1; j < b->hauteur; j += 2) {
+      set_grid(b, i, j, 2);
     }
-    // On met des murs cassables aléatoirement
-    int i = 0;
-    while (i < NB_WALLS) {
-        int x = rand() % b->largeur;
-        int y = rand() % b->hauteur;
-        if (get_grid(b, x, y) != 1 && get_grid(b, x, y) != 2 && get_grid(b, x, y) != 3){
-            set_grid(b, x, y, 3);
-            i++;
-        }
+  }
+  // On met des murs cassables aléatoirement
+  int i = 0;
+  while (i < NB_WALLS) {
+    int x = rand() % b->largeur;
+    int y = rand() % b->hauteur;
+    if (get_grid(b, x, y) != 1 && get_grid(b, x, y) != 2 &&
+        get_grid(b, x, y) != 3) {
+      set_grid(b, x, y, 3);
+      i++;
     }
+  }
+
+  b->bombs = malloc(10 * sizeof(bomb));
+  b->nb_bombs = 0;
 }
 
 // Retourne vrai si la case est un mur
-bool is_wall(board* b, int x, int y) {
-    return get_grid(b, x, y) == 2 || get_grid(b, x, y) == 3 ;
+bool is_wall(board *b, int x, int y) {
+  return get_grid(b, x, y) == 2 || get_grid(b, x, y) == 3;
 }
 
-int grid_creation()
-{
-    board* b = malloc(sizeof(board));;
-    line* l = malloc(sizeof(line));
-    l->cursor = 0;
-    pos* p = malloc(sizeof(pos));
-    p->x = 0; p->y = 0;
-
-    // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
-    initscr(); /* Start curses mode */
-    raw(); /* Disable line buffering */
-    intrflush(stdscr, FALSE); /* No need to flush when intr key is pressed */
-    keypad(stdscr, TRUE); /* Required in order to get events from keyboard */
-    nodelay(stdscr, TRUE); /* Make getch non-blocking */
-    noecho(); /* Don't echo() while we do getch (we will manually print characters when relevant) */
-    curs_set(0); // Set the cursor to invisible
-    start_color(); // Enable colors
-    init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is yellow, background is black)
-
-    setup_board(b);
-    setup_wall(b);
-
-    while (true) {
-        ACTION a = control(l);
-        if (perform_action(b, p, a)) break;
-        refresh_game(b,l);
-        usleep(30*1000);
+void setup_bomb(board *b) {
+  // place 4 sur les places disponibles aléatoirement
+  for (int i = 0; i < 4; i++) {
+    int x = rand() % b->largeur;
+    int y = rand() % b->hauteur;
+    if (get_grid(b, x, y) == 0) {
+      place_bomb(b, x, y);
     }
-    free_board(b);
-
-    curs_set(1); // Set the cursor to visible again
-    endwin(); /* End curses mode */
-
-    free(p); free(l); free(b);
-
-    return 0;
+  }
 }
 
+int grid_creation() {
+  board *b = malloc(sizeof(board));
+  ;
+  line *l = malloc(sizeof(line));
+  l->cursor = 0;
+  pos *p = malloc(sizeof(pos));
+  p->x = 0;
+  p->y = 0;
+
+  // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done
+  // on the same thread.
+  initscr();                /* Start curses mode */
+  raw();                    /* Disable line buffering */
+  intrflush(stdscr, FALSE); /* No need to flush when intr key is pressed */
+  keypad(stdscr, TRUE);     /* Required in order to get events from keyboard */
+  nodelay(stdscr, TRUE);    /* Make getch non-blocking */
+  noecho(); /* Don't echo() while we do getch (we will manually print characters
+               when relevant) */
+  curs_set(0);                             // Set the cursor to invisible
+  start_color();                           // Enable colors
+  init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is
+                                           // yellow, background is black)
+
+  setup_board(b);
+  setup_wall(b);
+  setup_bomb(b);
+
+  while (true) {
+    ACTION a = control(l);
+    if (perform_action(b, p, a))
+      break;
+    refresh_game(b, l);
+    usleep(30 * 1000);
+  }
+  free_board(b);
+
+  curs_set(1); // Set the cursor to visible again
+  endwin();    /* End curses mode */
+
+  free(p);
+  free(l);
+  free(b);
+
+  return 0;
+}
+
+int main() {
+  grid_creation();
+  return 0;
+}
