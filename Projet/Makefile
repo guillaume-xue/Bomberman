@@ -10,8 +10,5 @@ client: client.c client.h grid.c grid.h config.h
 server: server.c server.h 
 	$(CC) $(CFLAGS) -o server server.c $(LIBS)
 
-main: main.c
-	$(CC) $(CFLAGS) -o main main.c -lcurses
-
 clean:
-	rm -f client server grid main
+	rm -f client server grid
