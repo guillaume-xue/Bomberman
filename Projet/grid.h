@@ -5,9 +5,18 @@
 #include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define TEXT_SIZE 255
-#define NB_WALLS 100
+#define NB_WALLS 10
+#define BOMB 4
+
+enum colors { GREEN, YELLOW, MAGENTA, CYAN };
+
+typedef struct {
+  int x, y;      // Position de la bombe
+  int countdown; // Compte à rebours avant explosion
+} bomb;
 
 typedef struct board {
   char *grid;
@@ -27,20 +36,6 @@ typedef struct pos {
   int y;
 } pos;
 
-typedef struct bomb {
-    int x;
-    int y;
-    bool set;
-} bomb;
-
-bool is_wall(int x, int y);
-bool is_movable(int x, int y);
-bool is_bomb(int x, int y);
-bool is_wall_breakable(int x, int y);
-void set_grid(int x, int y, int v);
-void explode_bomb();
-void alarm_handler(int signum);
-int get_grid(int x, int y);
 
 int grid_creation();
 
