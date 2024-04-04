@@ -187,12 +187,17 @@ void suscribe_multicast() {
     exit(EXIT_FAILURE);
   }
 
-  int reuse = 1;
-  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
-      0) {
-    perror("La configuration de la socket UDP a échoué");
-    exit(EXIT_FAILURE);
-  }
+   int reuse = 1;
+    if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+        perror("setsockopt(SO_REUSEADDR) failed");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Nécessaire seulement si lancer sur macOS
+    if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
+        perror("setsockopt(SO_REUSEADDR) failed");
+        exit(EXIT_FAILURE);
+    }
 
   udp_listen_addr.sin6_family = AF_INET6;
   udp_listen_addr.sin6_port = htons(multicast_port);

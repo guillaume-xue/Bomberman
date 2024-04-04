@@ -107,7 +107,7 @@ void init_multicast_socket(Partie *partie) {
   partie->multicast_addr.sin6_family = AF_INET6;
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
   char multicast_group[INET6_ADDRSTRLEN];
-  snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x",
+  snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x",  // le 02 de ff02 prcq c'est un groupe local
            partie->partie_id + 1);
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
 
