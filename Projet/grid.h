@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "client.h"
 
 #define TEXT_SIZE 255
 #define NB_WALLS 100
@@ -32,20 +31,20 @@ typedef struct bomb {
     bool set;
 } bomb;
 
-typedef struct player{
-    GameMessage* msg;
-    pos *position;
-    bomb* bombe;
+typedef struct player {
+    pos *p;
+    int id;
+    bomb *b;
 } player;
 
-bool is_wall(board* b, int x, int y);
-bool is_movable(board* b, int x, int y);
-bool is_bomb(board* b, int x, int y);
-bool is_wall_breakable(board* b, int x, int y);
-void set_grid(board* b, int x, int y, int v);
-void explode_bomb(board* b, player* p);
+bool is_wall(int x, int y);
+bool is_movable(int x, int y);
+bool is_bomb(int x, int y);
+bool is_wall_breakable(int x, int y);
+void set_grid(int x, int y, int v);
+void explode_bomb();
 void alarm_handler(int signum);
-int get_grid(board* b, int x, int y);
+int get_grid(int x, int y);
 int grid_creation();
 
 #endif 
