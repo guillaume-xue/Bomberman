@@ -8,7 +8,7 @@
 #include "grid.h"
 
 player **players;
-bomb* bombe;
+int player_id;
 board* b;
 
 void setup_board() {
@@ -31,7 +31,7 @@ void setup_wall() {
     while (i < NB_WALLS) {
         int x = rand() % b->largeur;
         int y = rand() % b->hauteur;
-        if (get_grid(x, y) != 1 && get_grid(x, y) != 2 && get_grid(x, y) != 3){
+        if (get_grid(x, y) == 0){
             set_grid(x, y, 6);
             i++;
         }
@@ -44,6 +44,8 @@ void setup_players() {
         players[i] = malloc(sizeof(player));
         players[i]->p = malloc(sizeof(pos));
         players[i]->id = i+1;
+        players[i]->b = malloc(sizeof(bomb));
+        players[i]->b->set = false;
     }
     players[0]->p = malloc(sizeof(pos));
     players[0]->p->x = 0; players[0]->p->y = 0;
@@ -159,7 +161,6 @@ ACTION control(line* l) {
         default:
             if (prev_c >= ' ' && prev_c <= '~' && l->cursor < TEXT_SIZE)
                 l->data[(l->cursor)++] = prev_c;
-            if (bombe->set) l->data[(l->cursor)++] = '1';
             break;
     }
     return a;
@@ -186,23 +187,24 @@ bool perform_action(player * p, ACTION a) {
         case DOWN:
             xd = 0; yd = 1; break;
         case BOMB:
-            if (!bombe->set){
+            if (!p->b->set){
+                player_id = p->id-1;
                 signal(SIGALRM, alarm_handler);
                 alarm(3);
             }
-            bombe->set = true;
+            p->b->set = true;
             break;
         case QUIT:
             return true;
         default: break;
     }
 
-    if (bombe->set) {
-        set_grid(bombe->x, bombe->y, 7);
+    if (p->b->set) {
+        set_grid(p->b->x, p->b->y, 7);
         // Set the function to be called when SIGALRM signal is received
     }else{
-        bombe->x = p->p->x;
-        bombe->y = p->p->y;
+        p->b->x = p->p->x;
+        p->b->y = p->p->y;
     }
 
     if(is_movable(p->p->x + xd, p->p->y + yd)){
@@ -240,15 +242,15 @@ bool is_bomb(int x, int y) {
 
 void explode_bomb(){
     // On met les cases autour de la bombe à 0
-    for (int i = bombe->x - 1; i <= bombe->x + 1; i++) {
-        for (int j = bombe->y - 1; j <= bombe->y + 1; j++) {
+    for (int i = players[player_id]->b->x - 1; i <= players[player_id]->b->x + 1; i++) {
+        for (int j = players[player_id]->b->y - 1; j <= players[player_id]->b->y + 1; j++) {
             if (i >= 0 && i < b->largeur && j >= 0 && j < b->hauteur && is_wall_breakable(i, j)){
                 clear_grid(i, j);
             }
         }
     }
-    clear_grid(bombe->x, bombe->y);
-    bombe->set = false;
+    clear_grid(players[player_id]->b->x, players[player_id]->b->y);
+    players[player_id]->b->set = false;
 }
 
 void alarm_handler(int signum) {
@@ -270,9 +272,6 @@ int grid_creation()
     b = malloc(sizeof(board));;
     line* l = malloc(sizeof(line));
     l->cursor = 0;
-    bombe = malloc(sizeof(bomb));
-    bombe->x = 0; bombe->y = 0; bombe->set = false;
-    players = malloc(4 * sizeof(player*));
 
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
     initscr(); /* Start curses mode */
@@ -290,11 +289,11 @@ int grid_creation()
     setup_wall();
 
     while (true) {
-        ACTION a = control(l);
-        if (perform_action(players[0], a)) break;
-        if (perform_action(players[1], a)) break;
-        if (perform_action(players[2], a)) break;
-        if (perform_action(players[3], a)) break;
+        players[0]->action = control(l);
+        if (perform_action(players[0], players[0]->action)) break;
+        if (perform_action(players[1], players[1]->action)) break;
+        if (perform_action(players[2], players[2]->action)) break;
+        if (perform_action(players[3], players[3]->action)) break;
         refresh_game(l);
         usleep(30*1000);
     }
@@ -303,7 +302,7 @@ int grid_creation()
     curs_set(1); // Set the cursor to visible again
     endwin(); /* End curses mode */
 
-    free(l); free(b); free(bombe);
+    free(l); free(b);
 
     for (int i = 0; i < 4; i++) {
         free(players[i]->p);
@@ -312,5 +311,9 @@ int grid_creation()
     free(players);
 
     return 0;
+}
+
+int main() {
+    grid_creation();
 }
 

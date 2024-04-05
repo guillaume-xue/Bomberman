@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define TEXT_SIZE 255
-#define NB_WALLS 100
+#define NB_WALLS 400
 
 typedef struct board {
     char* grid;
@@ -35,6 +35,7 @@ typedef struct player {
     pos *p;
     int id;
     bomb *b;
+    ACTION action;
 } player;
 
 bool is_wall(int x, int y);
