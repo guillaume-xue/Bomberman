@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include "config.h"
 #include "grid.h"
 
 player **players;
