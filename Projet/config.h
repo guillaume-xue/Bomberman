@@ -9,7 +9,6 @@
 #include <net/if.h>
 #include <pthread.h>
 
-
 #define TCP_PORT 8080
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
