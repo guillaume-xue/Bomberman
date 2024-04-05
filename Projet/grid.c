@@ -4,13 +4,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "config.h"
 #include "grid.h"
 
-bomb* bombe;
-board* b;
-
-void setup_board() {
+void setup_board(board* b) {
     int lines = 22; int columns = 51;
     b->hauteur = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
     b->largeur = columns - 2; // 2 columns reserved for border
@@ -18,11 +14,11 @@ void setup_board() {
 }
 
 // Place les murs sur la grille
-void setup_wall() {
+void setup_wall(board* b) {
     // On met des murs incassables sur les cases impaires
     for (int i = 1; i < b->largeur; i+=2) {
         for (int j = 1; j < b->hauteur; j+=2) {
-            set_grid(i, j, 2);
+            set_grid(b, i, j, 2);
         }
     }
     // On met des murs cassables aléatoirement
@@ -30,32 +26,56 @@ void setup_wall() {
     while (i < NB_WALLS) {
         int x = rand() % b->largeur;
         int y = rand() % b->hauteur;
-        if (get_grid(x, y) != 1 && get_grid(x, y) != 2 && get_grid(x, y) != 3){
-            set_grid(x, y, 3);
+        if (get_grid(b, x, y) != 1 && get_grid(b, x, y) != 2 && get_grid(b, x, y) != 3){
+            set_grid(b, x, y, 3);
             i++;
         }
     }
 }
 
-void free_board() {
+void setup_player(board* b, player* p[4]) {
+    // On initialise les bombes des joueurs
+    for (int i = 0; i < 4; i++) {
+        p[i]->bombe = malloc(sizeof(bomb));
+        p[i]->bombe->x = 0;
+        p[i]->bombe->y = 0;
+        p[i]->bombe->set = false;
+        set_grid(b, p[i]->position->x, p[i]->position->y, 1);
+    }
+    // On place les joueurs aux coins de la grille
+    p[0]->position = malloc(sizeof(pos));
+    p[0]->position->x = 0;
+    p[0]->position->y = 0;
+    p[1]->position = malloc(sizeof(pos));
+    p[1]->position->x = b->largeur - 1;
+    p[1]->position->y = 0;
+    p[2]->position = malloc(sizeof(pos));
+    p[2]->position->x = 0;
+    p[2]->position->y = b->hauteur - 1;
+    p[3]->position = malloc(sizeof(pos));
+    p[3]->position->x = b->largeur - 1;
+    p[3]->position->y = b->hauteur - 1;
+}
+
+void free_board(board* b) {
     free(b->grid);
 }
 
-int get_grid(int x, int y) {
+int get_grid(board* b, int x, int y) {
     return b->grid[(y*b->largeur) + x];
 }
 
-void set_grid(int x, int y, int v) {
+void set_grid(board* b, int x, int y, int v) {
     b->grid[y*b->largeur + x] = v;
 }
 
-void refresh_game(line* l) {
+void refresh_game(board* b, line* l) {
     // Update grid
     int x,y;
     for (y = 0; y < b->hauteur; y++) {
         for (x = 0; x < b->largeur; x++) {
             char c;
-            switch (get_grid(x, y)) {
+            switch (get_grid(b, x, y)) {
                 case 0:
                     c = ' ';
                     break;
@@ -100,7 +120,7 @@ void refresh_game(line* l) {
     refresh(); // Apply the changes to the terminal
 }
 
-ACTION control(line* l) {
+ACTION control(board* b, line* l) {
     int c;
     int prev_c = ERR;
     // We consume all similar consecutive key presses
@@ -132,19 +152,18 @@ ACTION control(line* l) {
         default:
             if (prev_c >= ' ' && prev_c <= '~' && l->cursor < TEXT_SIZE)
                 l->data[(l->cursor)++] = prev_c;
-            if (bombe->set) l->data[(l->cursor)++] = '1';
             break;
     }
     return a;
 }
 
-void clear_grid(int x, int y) {
-    set_grid(x, y, 0);
+void clear_grid(board* b, int x, int y) {
+    set_grid(b, x, y, 0);
 }
 
-bool perform_action(pos* p, ACTION a) {
+bool perform_action(board* b, player *p, ACTION a) {
     // Efface l'ancienne position du joueur
-    clear_grid(p->x, p->y);
+    clear_grid(b, p->position->x, p->position->y);
 
     int xd = 0;
     int yd = 0;
@@ -159,79 +178,80 @@ bool perform_action(pos* p, ACTION a) {
         case DOWN:
             xd = 0; yd = 1; break;
         case BOMB:
-            if (!bombe->set){
+            if (!p->bombe->set){
+                explode_bomb(b, p);
                 signal(SIGALRM, alarm_handler);
                 alarm(3);
             }
-            bombe->set = true;
+            p->bombe->set = true;
             break;
         case QUIT:
             return true;
         default: break;
     }
 
-    if (bombe->set) {
-        set_grid(bombe->x, bombe->y, 4);
+    if (p->bombe->set) {
+        set_grid(b, p->bombe->x, p->bombe->y, 4);
         // Set the function to be called when SIGALRM signal is received
     }else{
-        bombe->x = p->x;
-        bombe->y = p->y;
+        p->bombe->x = p->position->x;
+        p->bombe->y = p->position->y;
     }
 
-    if(is_movable(p->x + xd, p->y + yd)){
+    if(is_movable(b, p->position->x + xd, p->position->y + yd)){
         // On bouge
-        p->x += xd;
-        p->y += yd;
-        set_grid(p->x, p->y, 1);
+        p->position->x += xd;
+        p->position->y += yd;
+        set_grid(b, p->position->x, p->position->y, 1);
     }
 
     return false;
 }
 
-bool is_movable(int x, int y) {
-    return x >= 0 && x < b->largeur && y >= 0 && y < b->hauteur && !is_wall(x, y) && !is_bomb(x, y);
+bool is_movable(board* b, int x, int y) {
+    return x >= 0 && x < b->largeur && y >= 0 && y < b->hauteur && !is_wall(b, x, y) && !is_bomb(b, x, y);
 }
 
-bool is_bomb(int x, int y) {
-    return get_grid(x, y) == 4;
+bool is_bomb(board* b, int x, int y) {
+    return get_grid(b, x, y) == 4;
 }
 
-void explode_bomb(){
-    // On met les cases autour de la bombe à 0
-    for (int i = bombe->x - 1; i <= bombe->x + 1; i++) {
-        for (int j = bombe->y - 1; j <= bombe->y + 1; j++) {
-            if (i >= 0 && i < b->largeur && j >= 0 && j < b->hauteur && is_wall_breakable(i, j)){
-                clear_grid(i, j);
+void explode_bomb(board* b, player* p) {
+    // On met les cases autour de la bombe à ' '
+    for (int i = p->bombe->x - 1; i <= p->bombe->x + 1; i++) {
+        for (int j = p->bombe->y - 1; j <= p->bombe->y + 1; j++) {
+            if (i >= 0 && i < b->largeur && j >= 0 && j < b->hauteur && is_wall_breakable(b, i, j)){
+                clear_grid(b, i, j);
             }
         }
     }
-    clear_grid(bombe->x, bombe->y);
-    bombe->set = false;
+    clear_grid(b, p->bombe->x, p->bombe->y);
+    p->bombe->set = false;
 }
 
 void alarm_handler(int signum) {
     // This function will be called when the SIGALRM signal is received
-    explode_bomb();
 }
 
-bool is_wall_breakable(int x, int y){
-    return get_grid(x, y) == 3;
+bool is_wall_breakable(board* b, int x, int y){
+    return get_grid(b, x, y) == 3;
 }
 
 // Retourne vrai si la case est un mur
-bool is_wall(int x, int y) {
-    return get_grid(x, y) == 2 || get_grid(x, y) == 3 ;
+bool is_wall(board* b, int x, int y) {
+    return get_grid(b, x, y) == 2 || get_grid(b, x, y) == 3 ;
 }
 
 int grid_creation()
 {
-    b = malloc(sizeof(board));;
+    board* b = malloc(sizeof(board));;
     line* l = malloc(sizeof(line));
     l->cursor = 0;
-    pos* p = malloc(sizeof(pos));
-    p->x = 0; p->y = 0;
-    bombe = malloc(sizeof(bomb));
-    bombe->x = 0; bombe->y = 0; bombe->set = false;
+    player *p[4];
+    for (int i = 0; i < 4; ++i) {
+        p[i] = malloc(sizeof(player));
+    }
+    setup_player(b, p);
 
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
     initscr(); /* Start curses mode */
@@ -244,23 +264,29 @@ int grid_creation()
     start_color(); // Enable colors
     init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is yellow, background is black)
 
-    setup_board();
-    setup_wall();
+    setup_board(b);
+    setup_wall(b);
 
     while (true) {
-        ACTION a = control(l);
-        if (perform_action(p, a)) break;
-        refresh_game(l);
+        ACTION a = control(b, l);
+        for (int i = 0; i < 4; ++i) {
+            if (perform_action(b, p[i], a)) break;
+        }
+        refresh_game(b, l);
         usleep(30*1000);
     }
-    free_board();
+
+    free_board(b);
 
     curs_set(1); // Set the cursor to visible again
     endwin(); /* End curses mode */
 
-    free(p); free(l); free(b);
-    free(bombe);
+    free(l); free(b);
 
     return 0;
 }
 
+int main() {
+    grid_creation();
+    return 0;
+}
