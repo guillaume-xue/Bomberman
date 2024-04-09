@@ -1,7 +1,6 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include "grid.h"
 #include "server.h"
 
 // WARNING : Faites attention au passage de 8191 à 0.

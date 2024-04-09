@@ -2,7 +2,6 @@
 #define SERVER_H
 
 #include "config.h"
-#include "grid.h"
 #include "client.h"
 
 #define MAX_CLIENTS 4

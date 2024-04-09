@@ -2,15 +2,14 @@
 #define GRID_H
 
 #include <ncurses.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
+#include <signal.h>
 #include "config.h"
 #include "client.h"
-#include "server.h"
 
 #define TEXT_SIZE 255
 #define NB_WALLS 10
+
+
 
 typedef struct board {
     char* grid;

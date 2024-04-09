@@ -1,5 +1,8 @@
 #include "client.h"
 
+#include "grid.h"
+
+
 int player_id;
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie

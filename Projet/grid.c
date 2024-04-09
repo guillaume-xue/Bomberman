@@ -1,15 +1,9 @@
 // Build with -lncurses option
-
-#include <ncurses.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 #include "grid.h"
-
 
 int ap;
 board* b;
-int player_id = 1;
+//int player_id = 1; cette identifiant existe déjà dans client.h
 player **players;
 
 void setup_board() {
@@ -250,15 +244,15 @@ void alarm_handler(int signum) {
 }
 
 void explode_bomb(){
-    for (int i = players[player_id]->b->x - 1; i <= players[player_id]->b->x + 1; i++) {
-        for (int j = players[player_id]->b->y - 1; j <= players[player_id]->b->y + 1; j++) {
+    for (int i = players[1]->b->x - 1; i <= players[1]->b->x + 1; i++) {
+        for (int j = players[1]->b->y - 1; j <= players[1]->b->y + 1; j++) {
             if (i >= 0 && i < b->largeur && j >= 0 && j < b->hauteur && is_wall_breakable(i, j)){
                 clear_grid(i, j);
             }
         }
     }
-    clear_grid(players[player_id]->b->x, players[player_id]->b->y);
-    players[player_id]->b->set = false;
+    clear_grid(players[1]->b->x, players[1]->b->y);
+    players[1]->b->set = false;
 }
 
 bool is_wall_breakable(int x, int y){
