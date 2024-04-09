@@ -33,7 +33,7 @@ void setup_wall() {
     // On met des murs incassables sur les cases impaires
     for (int i = 1; i < b->largeur; i+=2) {
         for (int j = 1; j < b->hauteur; j+=2) {
-            set_grid(i, j, 5);
+            set_grid(i, j, 1);
         }
     }
     // On met des murs cassables aléatoirement
@@ -42,7 +42,7 @@ void setup_wall() {
         int x = rand() % b->largeur;
         int y = rand() % b->hauteur;
         if (get_grid(x, y) == 0){
-            set_grid(x, y, 6);
+            set_grid(x, y, 2);
             i++;
         }
     }
@@ -90,25 +90,28 @@ void refresh_game(line* l) {
                     c = ' ';
                     break;
                 case 1:
-                    c = '1';
-                    break;
-                case 2:
-                    c = '2';
-                    break;
-                case 3:
-                    c = '3';
-                    break;
-                case 4:
-                    c = '4';
-                    break;
-                case 5:
                     c = 'U';
                     break;
-                case 6:
+                case 2:
                     c = 'B';
                     break;
-                case 7:
+                case 3:
                     c = 'X';
+                    break;
+                case 4:
+                    c = 'Y';
+                    break;
+                case 5:
+                    c = '1';
+                    break;
+                case 6:
+                    c = '2';
+                    break;
+                case 7:
+                    c = '3';
+                    break;
+                case 8:
+                    c = '4';
                     break;
                 default:
                     c = '?';
@@ -207,7 +210,7 @@ bool perform_action(player * p, ACTION a) {
     }
 
     if (p->b->set) {
-        set_grid(p->b->x, p->b->y, 7);
+        set_grid(p->b->x, p->b->y, 3);
     }else{
         p->b->x = p->p->x;
         p->b->y = p->p->y;
@@ -219,22 +222,21 @@ bool perform_action(player * p, ACTION a) {
         p->p->y += yd;
         switch (p->id) {
             case 1:
-                set_grid(p->p->x, p->p->y, 1);
+                set_grid(p->p->x, p->p->y, 5);
                 break;
             case 2:
-                set_grid(p->p->x, p->p->y, 2);
+                set_grid(p->p->x, p->p->y, 6);
                 break;
             case 3:
-                set_grid(p->p->x, p->p->y, 3);
+                set_grid(p->p->x, p->p->y, 7);
                 break;
             case 4:
-                set_grid(p->p->x, p->p->y, 4);
+                set_grid(p->p->x, p->p->y, 8);
                 break;
             default:
                 break;
         }
     }
-
     return false;
 }
 
@@ -250,7 +252,7 @@ bool is_movable(int x, int y) {
 }
 
 bool is_bomb(int x, int y) {
-    return get_grid(x, y) == 7;
+    return get_grid(x, y) == 3;
 }
 
 void alarm_handler(int signum) {
@@ -259,7 +261,6 @@ void alarm_handler(int signum) {
 }
 
 void explode_bomb(){
-    sleep(3);
     for (int i = players[player_id]->b->x - 1; i <= players[player_id]->b->x + 1; i++) {
         for (int j = players[player_id]->b->y - 1; j <= players[player_id]->b->y + 1; j++) {
             if (i >= 0 && i < b->largeur && j >= 0 && j < b->hauteur && is_wall_breakable(i, j)){
@@ -272,12 +273,12 @@ void explode_bomb(){
 }
 
 bool is_wall_breakable(int x, int y){
-    return get_grid(x, y) == 6;
+    return get_grid(x, y) == 2;
 }
 
 // Retourne vrai si la case est un mur
 bool is_wall(int x, int y) {
-    return get_grid(x, y) == 5 || get_grid(x, y) == 6 ;
+    return get_grid(x, y) == 1 || get_grid(x, y) == 2 ;
 }
 
 void update_action(player **p, line *l){
@@ -289,20 +290,22 @@ void update_action(player **p, line *l){
         ACTION a = NONE;
         switch (p[i]->msg->ACTION) {
             case 0:
-                a = LEFT;
+                a = UP;
                 break;
             case 1:
                 a = RIGHT;
                 break;
             case 2:
-                a = UP;
+                a = DOWN;
                 break;
             case 3:
-                a = DOWN;
+                a = LEFT;
                 break;
             case 4:
                 a = BOMB;
                 break;
+            case 5:
+                a = NONE;
             default:
                 break;
         }

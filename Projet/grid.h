@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "client.h"
+#include "config.h"
 
 #define TEXT_SIZE 255
 #define NB_WALLS 10

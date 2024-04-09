@@ -1,3 +1,6 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,3 +18,5 @@
 
 typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, BOMB, QUIT } ACTION;
 enum colors { GREEN, YELLOW, MAGENTA, CYAN };
+
+#endif
