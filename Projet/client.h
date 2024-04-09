@@ -4,6 +4,7 @@
 #include "grid.h"
 #include "server.h"
 
+// WARNING : Faites attention au passage de 8191 à 0.
 typedef struct {
   int CODEREQ;  // 5: 1v3, 6: 2v2
   short ID; // ID du joueur
