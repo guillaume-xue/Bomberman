@@ -13,9 +13,10 @@ typedef struct {
 } GameMessage;
 
 void send_game_request(int client_socket, int CODEREQ);
-
-void receive_message(int client_socket, void *buffer, size_t buffer_size);
-
-int join_server();
+void connexion_to_tcp_server();
+void choose_game_mode();
+void *handle_udp(void *arg);
+char *str_to_color(char *str);
+void suscribe_multicast();
 
 #endif
