@@ -7,7 +7,7 @@ char *color;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_send_addr;   // adresse de la partie en UDP
-struct sockaddr_in6 udp_listen_addr; // adresse de la partie en UDP
+struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
 // Fonction pour envoyer une demande de jeu au serveur
 void send_game_request(int client_socket, int CODEREQ) {
