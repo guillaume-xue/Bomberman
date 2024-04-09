@@ -8,7 +8,7 @@ GameMessage received_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_send_addr;   // adresse de la partie en UDP
-struct sockaddr_in6 udp_listen_addr; // adresse de la partie en UDP
+struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
 // Fonction pour envoyer une demande de jeu au serveur
 void send_game_request(int client_socket, int CODEREQ) {
@@ -93,15 +93,9 @@ void choose_game_mode() {
     }
   }
 
-  puts("\n\n\n\n");
+  system("clear");
 
-  if(game_mode == 1){  // 1 pour 1v3 sinon 2 , identifiant CODEREQ
-      //grid_creation();
-      send_game_request(tcp_socket, 1);
-  }
-  else{
-      send_game_request(tcp_socket, 2);
-  } 
+  send_game_request(tcp_socket, game_mode);
 }
 
 void *handle_udp(void *arg) {
