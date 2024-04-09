@@ -15,7 +15,7 @@ typedef struct {
 
 void send_game_request(int client_socket, int CODEREQ) ;
 
-void receive_message(int client_socket, void *buffer, size_t buffer_size);
+void receive_gmsg(int client_socket);
 
 int join_server();
 

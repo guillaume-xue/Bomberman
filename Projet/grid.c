@@ -6,10 +6,11 @@
 #include <string.h>
 #include "grid.h"
 
-player **players;
+
 int ap;
 board* b;
 int player_id = 1;
+player **players;
 
 void setup_board() {
     int lines = 22;
@@ -48,19 +49,7 @@ void setup_wall() {
     }
 }
 
-// Place les joueurs sur la grille
 void setup_players() {
-    players = malloc(4 * sizeof(player*));
-    for (int i = 0; i < 4; i++) {
-        players[i] = malloc(sizeof(player));
-        players[i]->p = malloc(sizeof(pos));
-        players[i]->id = i+1;
-        players[i]->b = malloc(sizeof(bomb)+1);
-        players[i]->b->set = false;
-        players[i]->msg = malloc(sizeof(GameMessage));
-        players[i]->msg->ACTION = 5151;
-        players[i]->action = NONE;
-    }
     players[0]->p->x = 0; players[0]->p->y = 0;
     players[1]->p->x = b->largeur - 1; players[1]->p->y = 0;
     players[2]->p->x = 0; players[2]->p->y = b->hauteur-1;
@@ -281,14 +270,14 @@ bool is_wall(int x, int y) {
     return get_grid(x, y) == 1 || get_grid(x, y) == 2 ;
 }
 
-void update_action(player **p, line *l){
+void update_action(line *l){
     players[ap-1]->action = control(l);
     for (int i = 0; i < 4; ++i) {
-        if (p[i]->id == ap) {
+        if (players[i]->id == ap) {
             continue;
         }
         ACTION a = NONE;
-        switch (p[i]->msg->ACTION) {
+        switch (players[i]->gmsg->ACTION) {
             case 0:
                 a = UP;
                 break;
@@ -309,12 +298,13 @@ void update_action(player **p, line *l){
             default:
                 break;
         }
-        p[i]->action = a;
+        players[i]->action = a;
     }
 }
 
-int grid_creation(int actual_player) {
+int grid_creation(int actual_player, player **pls) {
     ap = actual_player;
+    players = pls;
 
     line* l = malloc(sizeof(line) + 1);
     if (l == NULL) {
@@ -339,7 +329,7 @@ int grid_creation(int actual_player) {
     setup_wall();
 
     while (true) {
-        update_action(players, l);
+        update_action(l);
         if (perform_action_all()) break;
         refresh_game(l);
         usleep(30 * 1000);
@@ -353,17 +343,7 @@ int grid_creation(int actual_player) {
     free(l);
     free(b);
 
-    for (int i = 0; i < 4; i++) {
-        free(players[i]->p);
-        free(players[i]->b);
-        free(players[i]);
-    }
-    free(players);
-
     return 0;
 }
 
-int main() {
-    grid_creation(2);
-}
 

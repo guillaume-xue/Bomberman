@@ -5,8 +5,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "client.h"
 #include "config.h"
+#include "client.h"
+#include "server.h"
 
 #define TEXT_SIZE 255
 #define NB_WALLS 10
@@ -37,7 +38,7 @@ typedef struct player {
     pos *p;
     int id;
     bomb *b;
-    GameMessage *msg;
+    GameMessage *gmsg;
     ACTION action;
 } player;
 
@@ -49,6 +50,6 @@ void set_grid(int x, int y, int v);
 void explode_bomb();
 void alarm_handler(int signum);
 int get_grid(int x, int y);
-int grid_creation(int actual_player);
+int grid_creation(int actual_player, player **pls);
 
 #endif 
