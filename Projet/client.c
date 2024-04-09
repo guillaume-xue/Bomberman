@@ -83,15 +83,9 @@ void choose_game_mode() {
     }
   }
 
-  puts("\n\n\n\n");
+  system("clear");
 
-  if(game_mode == 1){  // 1 pour 1v3 sinon 2 , identifiant CODEREQ
-      //grid_creation();
-      send_game_request(tcp_socket, 1);
-  }
-  else{
-      send_game_request(tcp_socket, 2);
-  } 
+  send_game_request(tcp_socket, game_mode);
 }
 
 void *handle_udp(void *arg) {
