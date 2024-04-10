@@ -267,19 +267,20 @@ void update_players_action(player **players){
 }
 
 int main() {
-    //connexion_to_tcp_server();
+    connexion_to_tcp_server();
 
-    //sleep(1); // attente pour laisser le temps au serveur de se préparer
+    sleep(1); // attente pour laisser le temps au serveur de se préparer
 
-    //choose_game_mode();
+    choose_game_mode();
 
-    //suscribe_multicast();
+    suscribe_multicast();
 
-    //puts("YOUHOU ENFIN LAAAAAA !!!!");
+    puts("YOUHOU ENFIN LAAAAAA !!!!");
 
-    player **players;
+    /* player **players;
     init_players_info(players);
     grid_creation(player_id, players);
+     */
 
     return 0;
 }
