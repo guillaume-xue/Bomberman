@@ -1,6 +1,8 @@
 // Build with -lncurses option
 
 #include "grid.h"
+#include <ncurses.h>
+#include <signal.h>
 
 void refresh_game(line* l) {
     // Update grid
