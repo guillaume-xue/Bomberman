@@ -267,32 +267,11 @@ bool is_wall(int x, int y) {
 void update_action(line *l){
     players[ap-1]->action = control(l);
     for (int i = 0; i < 4; ++i) {
-        if (players[i]->id == ap) {
-            continue;
+        if (players[i]->id != ap) {
+            int x = players[i]->gmsg->ACTION;
+            if (x > 5 || x < 0) break;
+            players[i]->action = x;
         }
-        ACTION a = NONE;
-        switch (players[i]->gmsg->ACTION) {
-            case 0:
-                a = UP;
-                break;
-            case 1:
-                a = RIGHT;
-                break;
-            case 2:
-                a = DOWN;
-                break;
-            case 3:
-                a = LEFT;
-                break;
-            case 4:
-                a = BOMB;
-                break;
-            case 5:
-                a = NONE;
-            default:
-                break;
-        }
-        players[i]->action = a;
     }
 }
 
