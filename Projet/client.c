@@ -1,13 +1,10 @@
 #include "client.h"
-
 #include "grid.h"
 
-
-int player_id;
+int player_id; // id du joueur
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
-GameMessage received_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_send_addr;   // adresse de la partie en UDP
@@ -46,15 +43,6 @@ void send_game_request(int client_socket, int CODEREQ) {
     }
 
     printf("Fin des informations sur server \n\n");
-}
-
-void receive_gmsg(int client_socket) {
-    memset(&received_message, 0, sizeof(GameMessage));
-    // Réception du message depuis le client
-    if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
-        perror("La réception du message a échoué");
-        exit(EXIT_FAILURE);
-    }
 }
 
 void connexion_to_tcp_server() {
@@ -245,28 +233,8 @@ void suscribe_multicast() {
   pthread_join(thread, NULL);
 }
 
-void init_players_info(player **players) {
-    players = malloc(4 * sizeof(player*));
-    for (int i = 0; i < 4; i++) {
-        players[i] = malloc(sizeof(player));
-        players[i]->p = malloc(sizeof(pos));
-        players[i]->id = i+1;
-        players[i]->b = malloc(sizeof(bomb)+1);
-        players[i]->b->set = false;
-        players[i]->gmsg = malloc(sizeof(GameMessage));
-        players[i]->gmsg->ACTION = 5151;
-        players[i]->action = NONE;
-    }
-    players[player_id]->gmsg = malloc(sizeof(GameMessage));
-}
-
-void update_players_action(player **players){
-    if (players[received_message.ID]->id != player_id) {
-        players[received_message.ID]->action = received_message.ACTION;
-    }
-}
-
 int main() {
+
     connexion_to_tcp_server();
 
     sleep(1); // attente pour laisser le temps au serveur de se préparer
@@ -277,10 +245,6 @@ int main() {
 
     puts("YOUHOU ENFIN LAAAAAA !!!!");
 
-    /* player **players;
-    init_players_info(players);
-    grid_creation(player_id, players);
-     */
 
     return 0;
 }
