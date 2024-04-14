@@ -243,7 +243,7 @@ void im_ready() {
 
   ready.CODEREQ = game_mode + 2;
   ready.ID = player_id;
-  ready.EQ = (team_number == 0 || team_number == 1) ? team_number : 2;
+  ready.EQ = (game_mode == 2) ? team_number : -1;
 
   if (send(tcp_socket, &ready, sizeof(GameMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");

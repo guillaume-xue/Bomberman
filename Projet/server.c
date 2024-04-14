@@ -191,7 +191,7 @@ void *handle_client(void *arg){
   char buf[SIZE_MSG];
   memset(buf, 0, sizeof(buf));
 
-  if (client_ready.EQ == 2){
+  if (client_ready.EQ == -1){
     snprintf(buf, SIZE_MSG, "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d en mode : SOLO (1v3).", id_to_color(client_ready.ID), client_ready.ID, "\33[0m", index_partie);
   } else {
     snprintf(buf, SIZE_MSG, "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).", id_to_color(client_ready.ID), client_ready.ID, "\33[0m", client_ready.EQ, index_partie);
