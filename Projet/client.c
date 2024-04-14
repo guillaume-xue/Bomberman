@@ -235,6 +235,22 @@ void im_ready() {
   }
 }
 
+void get_grid() {
+  GridData grid;
+  memset(&grid, 0, sizeof(GridData));
+
+  ssize_t received = recv(tcp_socket, &grid, sizeof(GridData), 0);
+  if (received < 0) {
+    perror("La réception de la grille a échoué");
+    exit(EXIT_FAILURE);
+  } else if (received == 0) {
+    printf("La connexion TCP a été fermée par le serveur.\n");
+    exit(EXIT_SUCCESS); // Ou gérer la fermeture selon l'application
+  } else {
+    // ta partie Guillaume
+  }
+}
+
 int main() {
   connexion_to_tcp_server();
 
@@ -244,10 +260,7 @@ int main() {
 
   im_ready(); // dernière étape avant de commencer la partie
 
-  printf("Partie à implémenter \n");
-  // while (1) {
-  //   // On attend de recevoir un message de la partie
-  // }
+  get_grid();
 
   /* player **players;
   init_players_info(players);

@@ -203,16 +203,51 @@ void *handle_client(void *arg) {
              : "\n");
 
   if (4 - parties[index_partie].nb_joueurs == 0) {
-    // envoyer un signal pour dire que la partie peut commencer
-
-    printf("\033[90mLa partie n.%d va commencer dans 5 secondes.\033[0m\n", index_partie);
+    printf("\033[90mLa partie n.%d va commencer dans 5 secondes.\033[0m\n",
+           index_partie);
     for (int i = 0; i < 5; i++) {
       printf("\033[90m%d\033[0m \n", 5 - i);
       sleep(1);
     }
     puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
+
+    GridData start_msg;
+    memset(&start_msg, 0, sizeof(GridData));
+
+    start_msg.entete.CODEREQ = 11; 
+    start_msg.longueur = 100;
+    start_msg.largeur = 100;
+    init_grid(&start_msg.cases, start_msg.longueur, start_msg.largeur);
+
+    if (sendto(parties[index_partie].send_sock, &start_msg, sizeof(GridData), 0,
+               (struct sockaddr *)&parties[index_partie].multicast_addr,
+               sizeof(parties[index_partie].multicast_addr)) < 0) {
+      perror("L'envoi de la grille a échoué");
+      free(start_msg.cases);
+      exit(EXIT_FAILURE);
+    }
   }
   return NULL;
+}
+
+void init_grid(uint8_t **cases, uint8_t longueur, uint8_t largeur) {
+  *cases = malloc(longueur * largeur * sizeof(uint8_t));
+
+  if (!*cases) {
+    perror("L'allocation de la mémoire a échoué");
+    exit(EXIT_FAILURE);
+  }
+
+  for (int i = 0; i < longueur; i++) {
+    for (int j = 0; j < largeur; j++) {
+      (*cases)[i * longueur + j] = CASE_VIDE;
+    }
+  }
+  
+  (*cases)[0 * longueur + 0] = JOUEUR0;
+  (*cases)[0 * longueur + 99] = JOUEUR1;
+  (*cases)[99 * longueur + 0] = JOUEUR2;
+  (*cases)[99 * longueur + 99] = JOUEUR3;
 }
 
 void *handle_partie(void *arg) {
