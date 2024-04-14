@@ -1,14 +1,20 @@
-CC=gcc
-CFLAGS=-Wall
-LIBS=-lcurses -lpthread
+CC = gcc
+CFLAGS = -Wall
+LIBS = -lcurses -lpthread
 
-all: client server 
+CLIENT_OBJS = client.o grid.o func.o  # Ajoute func.o si nécessaire
+SERVER_OBJS = server.o func.o         # Ajoute func.o si nécessaire
 
-client: client.c client.h grid.c grid.h config.h
-	$(CC) $(CFLAGS) -o client client.c grid.c $(LIBS)
+all: client server
 
-server: server.c server.h 
-	$(CC) $(CFLAGS) -o server server.c $(LIBS)
+client: $(CLIENT_OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+server: $(SERVER_OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f client server 
+	rm -f *.o client server

@@ -29,15 +29,19 @@ void init_parties() {
 
     memset(&parties[i].partie_addr, 0, sizeof(parties[i].partie_addr));
     memset(&parties[i].multicast_addr, 0, sizeof(parties[i].multicast_addr));
-    memset(parties[i].clients_socket_tcp, -1, sizeof(parties[i].clients_socket_tcp));
+    memset(parties[i].clients_socket_tcp, -1,
+           sizeof(parties[i].clients_socket_tcp));
     memset(parties[i].clients_playing, -1, sizeof(parties[i].clients_playing));
   }
 }
 
-void add_partie(int client_socket, int mode_jeu, int i) {
+void add_partie(int client_socket, int mode_jeu) {
+  int i = nb_partie;
+
   parties[i].mode_jeu = mode_jeu;
   parties[i].clients_socket_tcp[parties[i].nb_joueurs] = client_socket;
   parties[i].clients_playing[parties[i].nb_joueurs] = parties[i].nb_joueurs;
+  parties[i].partie_id = i;
 
   parties[i].partie_addr.sin6_family = AF_INET6;
   parties[i].partie_addr.sin6_port = htons(TCP_PORT + i);
@@ -46,9 +50,6 @@ void add_partie(int client_socket, int mode_jeu, int i) {
   init_multicast_socket(&parties[i]);
 
   add_player(&parties[i], client_socket);
-
-  // pthread_create(&parties[nb_partie].thread_partie, NULL, handle_partie,
-  //                (void *)&parties[nb_partie]);
 }
 
 void init_multicast_socket(Partie *partie) {
@@ -103,7 +104,7 @@ int join_or_create(int client_socket, int mode_jeu) {
   }
 
   if (nb_partie < MAX_PARTIES) {
-    add_partie(client_socket, mode_jeu, nb_partie);
+    add_partie(client_socket, mode_jeu);
     nb_partie++;
   } else {
     // envoyer un signal pour que y a plus de place dans la partie
@@ -126,27 +127,13 @@ int join_or_create(int client_socket, int mode_jeu) {
 //   }
 // }
 
-char *id_to_color(int id) {
-  switch(id - 1){
-    case 0: 
-      return "\33[0;32m"; // green
-    case 1: 
-      return "\33[0;33m"; // yellow
-    case 2: 
-      return "\33[0;35m"; // magenta
-    case 3: 
-      return "\33[0;36m"; // cyan
-    default: 
-      return "\33[0m";  // white
-  }
-}
-
 // Fonction pour envoyer les informations de la partie au joueur
 void send_game_s_info(Partie *partie, int client_socket) {
   ServerMessage server_message;
   server_message.code_req = (parties[partie->partie_id].mode_jeu == 1) ? 9 : 10;
 
   server_message.id = parties[partie->partie_id].nb_joueurs;
+
   int team_number = parties[partie->partie_id].mode_jeu == 1
                         ? 1
                         : (server_message.id % 2) + 1;
@@ -159,14 +146,13 @@ void send_game_s_info(Partie *partie, int client_socket) {
   inet_ntop(AF_INET6, &(parties[partie->partie_id].multicast_addr.sin6_addr),
             server_message.adr_m_diff, INET6_ADDRSTRLEN);
 
-  if (send(client_socket, &server_message, sizeof(ServerMessage), 0) <
-      0) {
+  if (send(client_socket, &server_message, sizeof(ServerMessage), 0) < 0) {
     perror("L'envoi des informations de la partie a échoué");
     exit(EXIT_FAILURE);
   }
 }
 
-void *handle_client(void *arg){
+void *handle_client(void *arg) {
   int client_socket = *(int *)arg;
 
   GameMessage received_message;
@@ -178,7 +164,10 @@ void *handle_client(void *arg){
     exit(EXIT_FAILURE);
   }
 
-  int index_partie = join_or_create(client_socket, received_message.CODEREQ); // index_partie est l'index de la partie où le client a rejoint
+  int index_partie = join_or_create(
+      client_socket,
+      received_message.CODEREQ); // index_partie est l'index de la partie où le
+                                 // client a rejoint
 
   GameMessage client_ready;
   memset(&client_ready, 0, sizeof(GameMessage));
@@ -191,14 +180,38 @@ void *handle_client(void *arg){
   char buf[SIZE_MSG];
   memset(buf, 0, sizeof(buf));
 
-  if (client_ready.EQ == -1){
-    snprintf(buf, SIZE_MSG, "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d en mode : SOLO (1v3).", id_to_color(client_ready.ID), client_ready.ID, "\33[0m", index_partie);
+  if (client_ready.EQ == -1) {
+    snprintf(buf, SIZE_MSG,
+             "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
+             "en mode : SOLO (1v3).",
+             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+             index_partie);
   } else {
-    snprintf(buf, SIZE_MSG, "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).", id_to_color(client_ready.ID), client_ready.ID, "\33[0m", client_ready.EQ, index_partie);
+    snprintf(buf, SIZE_MSG,
+             "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
+             "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
+             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+             client_ready.EQ, index_partie);
   }
 
   printf("%s\n", buf);
-  printf("Il reste %d places dans la partie n.%d %s\n", 4 - parties[index_partie].nb_joueurs, index_partie, (4 - parties[index_partie].nb_joueurs == 0) ? "\033[31m\nNous sommes au complet, la partie peut commencer !!\033[0m" : "");
+  printf("Il reste %d places dans la partie n.%d %s\n",
+         4 - parties[index_partie].nb_joueurs, index_partie,
+         (4 - parties[index_partie].nb_joueurs == 0)
+             ? "\n\033[31m\nNous sommes au complet, la partie peut commencer "
+               "!!\033[0m\n"
+             : "\n");
+
+  if (4 - parties[index_partie].nb_joueurs == 0) {
+    // envoyer un signal pour dire que la partie peut commencer
+
+    printf("\033[90mLa partie n.%d va commencer dans 5 secondes.\033[0m\n", index_partie);
+    for (int i = 0; i < 5; i++) {
+      printf("\033[90m%d\033[0m \n", 5 - i);
+      sleep(1);
+    }
+    puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
+  }
   return NULL;
 }
 
@@ -248,7 +261,8 @@ int main() {
   printf("Serveur démarré, en attente de connexions...\n\n");
 
   while (1) {
-    int client_socket_tcp = accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
+    int client_socket_tcp =
+        accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
 
     if (client_socket_tcp >= 0) {
       printf("Ohhh, un client a rejoint le serveur\n");

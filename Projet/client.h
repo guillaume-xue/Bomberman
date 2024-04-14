@@ -2,6 +2,7 @@
 #define CLIENT_H
 
 #include "server.h"
+#include "func.h"
 
 // WARNING : Faites attention au passage de 8191 à 0.
 typedef struct {

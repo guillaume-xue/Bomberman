@@ -79,10 +79,9 @@ void connexion_to_tcp_server() {
 }
 
 void choose_game_mode() {
-  puts("Veuillez choisir un mode : 1 or 2");
-  puts("      1. 1v3");
-  puts("      2. 2v2");
-  printf("\nMon choix est : ");
+  char instruction[SIZE_MSG];
+  sprintf(instruction, "Veuillez choisir un mode : 1 or 2\n      1. 1v3\n      2. 2v2\n\nMon choix est : ");
+  printf("%s", instruction);
 
   char buf[20];
   while (1) {
@@ -92,12 +91,12 @@ void choose_game_mode() {
       game_mode = atoi(buf);
       break;
     } else {
-      puts("Invalid game mode. Please select 1 (1v3) or 2 "
-           "(2v2)");
+      puts("\n\n\033[31mInvalid game mode. Please select 1 (1v3) or 2 (2v2)\033[0m\n");
+      printf("%s", instruction);
     }
   }
 
-  system("clear");
+  clear_term();
 
   GameMessage request;
   memset(&request, 0, sizeof(GameMessage));
@@ -106,21 +105,6 @@ void choose_game_mode() {
   if (send(tcp_socket, &request, sizeof(GameMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
-  }
-}
-
-char *id_to_color(int id) {
-  switch (id) {
-  case 0:
-    return "\33[0;32m"; // green
-  case 1:
-    return "\33[0;33m"; // yellow
-  case 2:
-    return "\33[0;35m"; // magenta
-  case 3:
-    return "\33[0;36m"; // cyan
-  default:
-    return "\33[0m"; // white
   }
 }
 
