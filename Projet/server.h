@@ -17,9 +17,10 @@ typedef struct {
   int send_sock;  // sock pour envoyer des messages multicast aux clients
   struct sockaddr_in6 multicast_addr; // adresse multicast
 
-  int listen_sock;  // sock sur lequel on écoute les messages des clients
   struct sockaddr_in6 partie_addr;  // adresse de la partie
 
+  int clients_socket_tcp[MAX_CLIENTS];  // sockets des clients, pour communiquer avec eux
+  int clients_playing[MAX_CLIENTS];  // id des clients, afin de savoir qui est encore connecté dans la partie
 } Partie;
 
 typedef struct {
@@ -35,14 +36,11 @@ char *get_color(int x);
 
 void init_mutex();
 void init_parties();
-void add_player(Partie *partie);
+void add_player(Partie *partie, int client_socket);
 void add_partie(int client_socket, int mode_jeu, int index_partie);
 int join_or_create(int client_socket, int mode_jeu);
 void *handle_client(void *arg);
-int recv_mode(int client_socket);
-void x_client_left(int x, int client_socket);
 void init_multicast_socket(Partie *partie);
-
-void send_game_s_info(int client_socket, int id_player, int id_partie );
+void send_game_s_info(Partie *partie, int client_socket);
 
 #endif

@@ -2,11 +2,11 @@
 
 #include "grid.h"
 
-
 int player_id;
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
+int game_mode;
 GameMessage received_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
@@ -15,46 +15,48 @@ struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
 // Fonction pour envoyer une demande de jeu au serveur
 void send_game_request(int client_socket, int CODEREQ) {
-    GameMessage request;
-    memset(&request, 0, sizeof(GameMessage));
-    request.CODEREQ = CODEREQ;
+  GameMessage request;
+  memset(&request, 0, sizeof(GameMessage));
+  request.CODEREQ = CODEREQ;
 
-    printf("CODEREQ : %d \n", request.CODEREQ);
-    if (send(client_socket, &request, sizeof(GameMessage), 0) < 0) {
-        perror("L'envoi de la demande de jeu a échoué");
-        exit(EXIT_FAILURE);
-    }
-    printf(" Message envoyé pour intégrer ou lancer une partie \n"); 
+  printf("CODEREQ : %d \n", request.CODEREQ);
+  if (send(client_socket, &request, sizeof(GameMessage), 0) < 0) {
+    perror("L'envoi de la demande de jeu a échoué");
+    exit(EXIT_FAILURE);
+  }
+  printf(" Message envoyé pour intégrer ou lancer une partie \n");
 
-    // Attente de la réponse du server pour avoir toutes les informations nécessaires sur la partie 
-    ServerMessage mess_serv;
-    ssize_t bytes_received = recv(client_socket, &mess_serv, sizeof(ServerMessage), 0);
+  // Attente de la réponse du server pour avoir toutes les informations
+  // nécessaires sur la partie
+  ServerMessage mess_serv;
+  ssize_t bytes_received =
+      recv(client_socket, &mess_serv, sizeof(ServerMessage), 0);
 
-    if (bytes_received < 0) {
-        perror("La réception des informations du serveur a échoué");
-        exit(EXIT_FAILURE);
-    } else if (bytes_received == 0) {
-        printf("Le serveur a fermé la connexion\n");
-    } else {
-        printf("Informations reçues du serveur :\n");
-        printf("Code de requête : %d\n", mess_serv.code_req);
-        printf("ID : %d\n", mess_serv.id);
-        printf("Équipe : %d\n", mess_serv.eq);
-        // printf("Port UDP : %d\n", mess_serv.port_udp);
-        // printf("Port de multidiffusion : %d\n", mess_serv.port_m_diff);
-        // printf("Adresse de multidiffusion : %s\n", mess_serv.adr_m_diff);
-    }
+  if (bytes_received < 0) {
+    perror("La réception des informations du serveur a échoué");
+    exit(EXIT_FAILURE);
+  } else if (bytes_received == 0) {
+    printf("Le serveur a fermé la connexion\n");
+  } else {
+    printf("Informations reçues du serveur :\n");
+    printf("Code de requête : %d\n", mess_serv.code_req);
+    printf("ID : %d\n", mess_serv.id);
+    printf("Équipe : %d\n", mess_serv.eq);
+    // printf("Port UDP : %d\n", mess_serv.port_udp);
+    // printf("Port de multidiffusion : %d\n", mess_serv.port_m_diff);
+    // printf("Adresse de multidiffusion : %s\n", mess_serv.adr_m_diff);
+  }
 
-    printf("Fin des informations sur server \n\n");
+  printf("Fin des informations sur server \n\n");
 }
 
 void receive_gmsg(int client_socket) {
-    memset(&received_message, 0, sizeof(GameMessage));
-    // Réception du message depuis le client
-    if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
-        perror("La réception du message a échoué");
-        exit(EXIT_FAILURE);
-    }
+  memset(&received_message, 0, sizeof(GameMessage));
+  // Réception du message depuis le client
+  if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
+    perror("La réception du message a échoué");
+    exit(EXIT_FAILURE);
+  }
 }
 
 void connexion_to_tcp_server() {
@@ -77,7 +79,6 @@ void connexion_to_tcp_server() {
 }
 
 void choose_game_mode() {
-  int game_mode;
   puts("Veuillez choisir un mode : 1 or 2");
   puts("      1. 1v3");
   puts("      2. 2v2");
@@ -98,70 +99,42 @@ void choose_game_mode() {
 
   system("clear");
 
-  send_game_request(tcp_socket, game_mode);
-}
+  GameMessage request;
+  memset(&request, 0, sizeof(GameMessage));
+  request.CODEREQ = game_mode;
 
-void *handle_udp(void *arg) {
-  int from_server = *(int *)arg;
-  char buf[SIZE_MSG];
-  memset(buf, 0, sizeof(buf));
-
-  snprintf(buf, SIZE_MSG, "%d,%d", player_id, team_number);
-  if (sendto(udp_socket, buf, strlen(buf), 0, (struct sockaddr *)&udp_send_addr,
-             sizeof(udp_send_addr)) < 0) {
-    perror("L'envoi du message de prêt a échoué");
+  if (send(tcp_socket, &request, sizeof(GameMessage), 0) < 0) {
+    perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
   }
-
-  puts("En attente de la partie pour commencer");
-  if (team_number == 1) {
-    printf("%sJe suis le joueur %d, et je suis prêt pour le 1v3%s\n", color,
-           player_id, "\033[0m");
-  } else {
-    printf("%sJe suis le joueur %d, et je suis dans l'équipe %d%s\n", color,
-           player_id, team_number, "\033[0m");
-  }
-
-  while (1) {
-    memset(buf, 0, sizeof(buf));
-    ssize_t received = recv(from_server, buf, SIZE_MSG, 0);
-    if (received < 0) {
-      perror("La réception de l'adresse et du port UDP a échoué");
-      exit(EXIT_FAILURE);
-    } else if (received == 0) {
-      printf("La connexion UDP a été fermée par le serveur.\n");
-      exit(EXIT_SUCCESS); // Ou gérer la fermeture selon l'application
-    } else {
-      printf("Message reçu : %s\n", buf);
-    }
-  }
 }
 
-char *str_to_color(char *str) {
-  if (strcmp(str, "green") == 0) {
-    return "\033[0;32m";
-  } else if (strcmp(str, "yellow") == 0) {
-    return "\033[0;33m";
-  } else if (strcmp(str, "magenta") == 0) {
-    return "\033[0;35m";
-  } else if (strcmp(str, "cyan") == 0) {
-    return "\033[0;36m";
-  } else {
-    return "\033[0m";
+char *id_to_color(int id) {
+  switch (id) {
+  case 0:
+    return "\33[0;32m"; // green
+  case 1:
+    return "\33[0;33m"; // yellow
+  case 2:
+    return "\33[0;35m"; // magenta
+  case 3:
+    return "\33[0;36m"; // cyan
+  default:
+    return "\33[0m"; // white
   }
 }
 
 void suscribe_multicast() {
   // Dans un premier temps, on récupère l'adresse et le port de la partie en UDP
   // nécessaire à la connextion multicast en UDP
-  
-  //char buf[SIZE_MSG];
+
+  // char buf[SIZE_MSG];
   ServerMessage serv_message;
 
   memset(&serv_message, 0, sizeof(ServerMessage));
   memset(&udp_send_addr, 0, sizeof(udp_send_addr));
   memset(&udp_listen_addr, 0, sizeof(udp_listen_addr));
-  
+
   int multicast_port;
   int partie_port;
   char multicast_addr[INET6_ADDRSTRLEN];
@@ -184,7 +157,7 @@ void suscribe_multicast() {
 
     strcpy(multicast_addr, serv_message.adr_m_diff);
 
-    //color = str_to_color(token);
+    color = id_to_color(player_id);
   }
 
   // Maintenant on se connecte en UDP à la partie
@@ -195,9 +168,13 @@ void suscribe_multicast() {
   }
 
   int reuse = 1;
-  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
-      0) {
-    perror("La configuration de la socket UDP a échoué");
+  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+    perror("setsockopt(SO_REUSEADDR) failed");
+    exit(EXIT_FAILURE);
+  }
+
+  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
+    perror("setsockopt(SO_REUSEADDR) failed");
     exit(EXIT_FAILURE);
   }
 
@@ -237,50 +214,61 @@ void suscribe_multicast() {
   udp_send_addr.sin6_family = AF_INET6;
   udp_send_addr.sin6_port = htons(partie_port);
   inet_pton(AF_INET6, "::1", &udp_send_addr.sin6_addr);
-
-  int *x = malloc(sizeof(int));
-  *x = udp_socket;
-  pthread_t thread;
-  pthread_create(&thread, NULL, handle_udp, (void *)x);
-  pthread_join(thread, NULL);
 }
 
 void init_players_info(player **players) {
-    players = malloc(4 * sizeof(player*));
-    for (int i = 0; i < 4; i++) {
-        players[i] = malloc(sizeof(player));
-        players[i]->p = malloc(sizeof(pos));
-        players[i]->id = i+1;
-        players[i]->b = malloc(sizeof(bomb)+1);
-        players[i]->b->set = false;
-        players[i]->gmsg = malloc(sizeof(GameMessage));
-        players[i]->gmsg->ACTION = 5151;
-        players[i]->action = NONE;
-    }
-    players[player_id]->gmsg = malloc(sizeof(GameMessage));
+  players = malloc(4 * sizeof(player *));
+  for (int i = 0; i < 4; i++) {
+    players[i] = malloc(sizeof(player));
+    players[i]->p = malloc(sizeof(pos));
+    players[i]->id = i + 1;
+    players[i]->b = malloc(sizeof(bomb) + 1);
+    players[i]->b->set = false;
+    players[i]->gmsg = malloc(sizeof(GameMessage));
+    players[i]->gmsg->ACTION = 5151;
+    players[i]->action = NONE;
+  }
+  players[player_id]->gmsg = malloc(sizeof(GameMessage));
 }
 
-void update_players_action(player **players){
-    if (players[received_message.ID]->id != player_id) {
-        players[received_message.ID]->action = received_message.ACTION;
-    }
+void update_players_action(player **players) {
+  if (players[received_message.ID]->id != player_id) {
+    players[received_message.ID]->action = received_message.ACTION;
+  }
+}
+
+void im_ready() {
+  GameMessage ready;
+  memset(&ready, 0, sizeof(GameMessage));
+
+  ready.CODEREQ = game_mode + 2;
+  ready.ID = player_id;
+  ready.EQ = (team_number == 0 || team_number == 1) ? team_number : 2;
+
+  if (send(tcp_socket, &ready, sizeof(GameMessage), 0) < 0) {
+    perror("L'envoi de la demande de jeu a échoué");
+    exit(EXIT_FAILURE);
+  }
 }
 
 int main() {
-    connexion_to_tcp_server();
+  connexion_to_tcp_server();
 
-    sleep(1); // attente pour laisser le temps au serveur de se préparer
+  choose_game_mode();
 
-    choose_game_mode();
+  suscribe_multicast();
 
-    suscribe_multicast();
+  im_ready(); // dernière étape avant de commencer la partie
 
-    puts("YOUHOU ENFIN LAAAAAA !!!!");
+  printf("Partie à implémenter \n");
+  // while (1) {
+  //   // On attend de recevoir un message de la partie
+  // }
 
-    /* player **players;
-    init_players_info(players);
-    grid_creation(player_id, players);
-     */
+  /* player **players;
+  init_players_info(players);
+  grid_creation(player_id, players);
+   */
 
-    return 0;
+  return 0;
 }
