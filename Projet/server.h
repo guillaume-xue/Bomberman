@@ -75,5 +75,6 @@ int join_or_create(int client_socket, int mode_jeu);
 void *handle_client(void *arg);
 void init_multicast_socket(Partie *partie);
 void send_game_s_info(Partie *partie, int client_socket);
+void init_game_grid(uint8_t **cases, uint8_t longueur, uint8_t largeur);
 
 #endif

@@ -80,7 +80,8 @@ void connexion_to_tcp_server() {
 
 void choose_game_mode() {
   char instruction[SIZE_MSG];
-  sprintf(instruction, "Veuillez choisir un mode : 1 or 2\n      1. 1v3\n      2. 2v2\n\nMon choix est : ");
+  sprintf(instruction, "Veuillez choisir un mode : 1 or 2\n      1. 1v3\n      "
+                       "2. 2v2\n\nMon choix est : ");
   printf("%s", instruction);
 
   char buf[20];
@@ -91,7 +92,8 @@ void choose_game_mode() {
       game_mode = atoi(buf);
       break;
     } else {
-      puts("\n\n\033[31mInvalid game mode. Please select 1 (1v3) or 2 (2v2)\033[0m\n");
+      puts("\n\n\033[31mInvalid game mode. Please select 1 (1v3) or 2 "
+           "(2v2)\033[0m\n");
       printf("%s", instruction);
     }
   }
@@ -152,19 +154,22 @@ void suscribe_multicast() {
   }
 
   int reuse = 1;
-  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
+      0) {
     perror("setsockopt(SO_REUSEADDR) failed");
     exit(EXIT_FAILURE);
   }
 
-  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
+  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) <
+      0) {
     perror("setsockopt(SO_REUSEADDR) failed");
     exit(EXIT_FAILURE);
   }
 
   udp_listen_addr.sin6_family = AF_INET6;
   udp_listen_addr.sin6_port = htons(multicast_port);
-  udp_listen_addr.sin6_addr = in6addr_any;
+  inet_pton(AF_INET6, multicast_addr, &udp_listen_addr.sin6_addr);
+  // udp_listen_addr.sin6_addr = in6addr_any;
 
   if (bind(udp_socket, (struct sockaddr *)&udp_listen_addr,
            sizeof(udp_listen_addr)) < 0) {
@@ -182,12 +187,11 @@ void suscribe_multicast() {
   }
 
   struct ipv6_mreq group;
+  group.ipv6mr_interface = ifindex;
   if (inet_pton(AF_INET6, multicast_addr, &group.ipv6mr_multiaddr) != 1) {
     perror("Erreur de conversion de l'adresse multicast");
     exit(EXIT_FAILURE);
   }
-
-  group.ipv6mr_interface = ifindex;
 
   if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, &group,
                  sizeof(group)) < 0) {
@@ -235,20 +239,36 @@ void im_ready() {
   }
 }
 
-void get_grid() {
+void init_client_game_grid() {
+  char addr[INET6_ADDRSTRLEN];
+  inet_ntop(AF_INET6, &udp_listen_addr.sin6_addr, addr, INET6_ADDRSTRLEN);
+  printf("%s\n", addr);
+
+  char buf[SIZE_MSG];
+  memset(buf, 0, SIZE_MSG);
+
+  if (recv(udp_socket, buf, SIZE_MSG, 0) < 0) {
+    perror("La réception de la grille a échoué");
+    exit(EXIT_FAILURE);
+  }
+
+  printf("data received : %s\n", buf);
+
   GridData grid;
   memset(&grid, 0, sizeof(GridData));
 
-  ssize_t received = recv(tcp_socket, &grid, sizeof(GridData), 0);
-  if (received < 0) {
+  puts("En attente de la grille de jeu...");
+  // Réception de la grille de jeu, à partir d'un message envoyé par le serveur
+  // au groupe
+  ssize_t recu = recv(udp_socket, &grid, sizeof(GridData), 0);
+  if (recu < 0) {
     perror("La réception de la grille a échoué");
     exit(EXIT_FAILURE);
-  } else if (received == 0) {
-    printf("La connexion TCP a été fermée par le serveur.\n");
-    exit(EXIT_SUCCESS); // Ou gérer la fermeture selon l'application
   } else {
     // ta partie Guillaume
+    puts("Grille reçue");
   }
+  puts("En attente de la grille de jeu...");
 }
 
 int main() {
@@ -260,7 +280,7 @@ int main() {
 
   im_ready(); // dernière étape avant de commencer la partie
 
-  get_grid();
+  init_client_game_grid();
 
   /* player **players;
   init_players_info(players);

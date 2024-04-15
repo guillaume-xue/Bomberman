@@ -114,19 +114,6 @@ int join_or_create(int client_socket, int mode_jeu) {
   return nb_partie - 1; // retourne l'index de la partie tout juste créer
 }
 
-// servira peut etre plus tard
-// void x_client_left(int x, int client_socket) {
-//   int res = 4 - x;
-//   char buf[SIZE_MSG];
-//   memset(buf, 0, sizeof(buf));
-//   snprintf(buf, SIZE_MSG, "%d", res);
-
-//   if (send(client_socket, buf, strlen(buf), 0) < 0) {
-//     perror("L'envoi du nombre de joueurs restants a échoué");
-//     exit(EXIT_FAILURE);
-//   }
-// }
-
 // Fonction pour envoyer les informations de la partie au joueur
 void send_game_s_info(Partie *partie, int client_socket) {
   ServerMessage server_message;
@@ -134,11 +121,10 @@ void send_game_s_info(Partie *partie, int client_socket) {
 
   server_message.id = parties[partie->partie_id].nb_joueurs;
 
-  int team_number = parties[partie->partie_id].mode_jeu == 1
+  server_message.eq = parties[partie->partie_id].mode_jeu == 1
                         ? 1
                         : (server_message.id % 2) + 1;
 
-  server_message.eq = team_number;
   server_message.port_udp = parties[partie->partie_id].partie_addr.sin6_port;
   server_message.port_m_diff =
       parties[partie->partie_id].multicast_addr.sin6_port;
@@ -211,13 +197,29 @@ void *handle_client(void *arg) {
     }
     puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
 
+    char buf[SIZE_MSG];
+    memset(buf, 0, SIZE_MSG);
+    snprintf(buf, SIZE_MSG, "test multicast !!");
+    if (sendto(parties[index_partie].send_sock, buf, SIZE_MSG, 0,
+               (struct sockaddr *)&parties[index_partie].multicast_addr,
+               sizeof(parties[index_partie].multicast_addr)) < 0) {
+      perror("L'envoi du message multicast a échoué");
+      exit(EXIT_FAILURE);
+    }
+
+    char addr[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &(parties[index_partie].multicast_addr.sin6_addr), addr,
+              INET6_ADDRSTRLEN);
+
+    printf("L'adresse multicast est : %s\n", addr);
+
     GridData start_msg;
     memset(&start_msg, 0, sizeof(GridData));
 
     start_msg.entete.CODEREQ = 11; 
     start_msg.longueur = 100;
     start_msg.largeur = 100;
-    init_grid(&start_msg.cases, start_msg.longueur, start_msg.largeur);
+    init_game_grid(&start_msg.cases, start_msg.longueur, start_msg.largeur);
 
     if (sendto(parties[index_partie].send_sock, &start_msg, sizeof(GridData), 0,
                (struct sockaddr *)&parties[index_partie].multicast_addr,
@@ -226,11 +228,12 @@ void *handle_client(void *arg) {
       free(start_msg.cases);
       exit(EXIT_FAILURE);
     }
+    puts("\033[90mLa grille a été envoyée à tous les joueurs.\033[0m\n");
   }
   return NULL;
 }
 
-void init_grid(uint8_t **cases, uint8_t longueur, uint8_t largeur) {
+void init_game_grid(uint8_t **cases, uint8_t longueur, uint8_t largeur) {
   *cases = malloc(longueur * largeur * sizeof(uint8_t));
 
   if (!*cases) {

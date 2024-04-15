@@ -20,5 +20,6 @@ void *handle_udp(void *arg);
 char *id_to_color(int id);
 void suscribe_multicast();
 void receive_gmsg(int client_socket);
+void init_client_game_grid();
 
 #endif
