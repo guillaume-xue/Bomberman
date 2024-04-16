@@ -11,6 +11,9 @@
 #include <time.h>
 #include <net/if.h>
 #include <pthread.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+
 
 #define TCP_PORT 8080
 #define MULTICAST_PORT 9000

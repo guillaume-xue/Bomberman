@@ -1,5 +1,4 @@
 #include "client.h"
-
 #include "grid.h"
 
 int player_id;
@@ -7,47 +6,25 @@ int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
 int game_mode;
+//char* group_c = "239.255.255.250";
 GameMessage received_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_send_addr;   // adresse de la partie en UDP
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
-// Fonction pour envoyer une demande de jeu au serveur
-void send_game_request(int client_socket, int CODEREQ) {
-  GameMessage request;
-  memset(&request, 0, sizeof(GameMessage));
-  request.CODEREQ = CODEREQ;
 
-  printf("CODEREQ : %d \n", request.CODEREQ);
-  if (send(client_socket, &request, sizeof(GameMessage), 0) < 0) {
-    perror("L'envoi de la demande de jeu a échoué");
-    exit(EXIT_FAILURE);
-  }
-  printf(" Message envoyé pour intégrer ou lancer une partie \n");
-
-  // Attente de la réponse du server pour avoir toutes les informations
-  // nécessaires sur la partie
-  ServerMessage mess_serv;
-  ssize_t bytes_received =
-      recv(client_socket, &mess_serv, sizeof(ServerMessage), 0);
-
-  if (bytes_received < 0) {
-    perror("La réception des informations du serveur a échoué");
-    exit(EXIT_FAILURE);
-  } else if (bytes_received == 0) {
-    printf("Le serveur a fermé la connexion\n");
-  } else {
-    printf("Informations reçues du serveur :\n");
-    printf("Code de requête : %d\n", mess_serv.code_req);
-    printf("ID : %d\n", mess_serv.id);
-    printf("Équipe : %d\n", mess_serv.eq);
-    // printf("Port UDP : %d\n", mess_serv.port_udp);
-    // printf("Port de multidiffusion : %d\n", mess_serv.port_m_diff);
-    // printf("Adresse de multidiffusion : %s\n", mess_serv.adr_m_diff);
-  }
-
-  printf("Fin des informations sur server \n\n");
+void print_udp_subscription(int sockfd) {
+    struct ipv6_mreq mreq;
+    socklen_t len = sizeof(mreq);
+  
+    if (getsockopt(sockfd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &mreq, &len) == 0) {
+        char multicast_group[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, &(mreq.ipv6mr_multiaddr), multicast_group, INET6_ADDRSTRLEN);
+        printf("Le socket est abonné au groupe multicast : %s\n", multicast_group);
+    } else {
+        perror("getsockopt(IPV6_JOIN_GROUP) failed");
+    }
 }
 
 void receive_gmsg(int client_socket) {
@@ -112,7 +89,7 @@ void choose_game_mode() {
 
 void suscribe_multicast() {
   // Dans un premier temps, on récupère l'adresse et le port de la partie en UDP
-  // nécessaire à la connextion multicast en UDP
+  // nécessaire à la connexion multicast en UDP
 
   // char buf[SIZE_MSG];
   ServerMessage serv_message;
@@ -138,12 +115,13 @@ void suscribe_multicast() {
     team_number = serv_message.eq;
 
     multicast_port = serv_message.port_m_diff;
-
+    
     partie_port = serv_message.port_udp;
 
     strcpy(multicast_addr, serv_message.adr_m_diff);
 
     color = id_to_color(player_id);
+    printf("multicast port : %d , partie_port : %d , multicast_addr : %s \n", multicast_port, partie_port,multicast_addr);
   }
 
   // Maintenant on se connecte en UDP à la partie
@@ -152,6 +130,7 @@ void suscribe_multicast() {
     perror("La création de la socket UDP a échoué");
     exit(EXIT_FAILURE);
   }
+  //printf("Socket UDP créée avec succès.\n");
 
   int reuse = 1;
   if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
@@ -164,7 +143,8 @@ void suscribe_multicast() {
       0) {
     perror("setsockopt(SO_REUSEADDR) failed");
     exit(EXIT_FAILURE);
-  }
+   }
+
 
   udp_listen_addr.sin6_family = AF_INET6;
   udp_listen_addr.sin6_port = htons(multicast_port);
@@ -176,10 +156,11 @@ void suscribe_multicast() {
     perror("La liaison de la socket UDP a échoué");
     exit(EXIT_FAILURE);
   }
+  //printf("Socket UDP liée avec succès à l'adresse et au port multicast.\n");
 
   // Abonnement au groupe multicast
   int ifindex = if_nametoindex(
-      "en0"); // à check en fonction de la machine sur laquelle on lance,
+      "wlp0s20f3"); // à check en fonction de la machine sur laquelle on lance,
 
   if (ifindex == 0) {
     perror("if_nametoindex failed");
@@ -202,7 +183,7 @@ void suscribe_multicast() {
 
   udp_send_addr.sin6_family = AF_INET6;
   udp_send_addr.sin6_port = htons(partie_port);
-  inet_pton(AF_INET6, "::1", &udp_send_addr.sin6_addr);
+  inet_pton(AF_INET6, multicast_addr, &udp_send_addr.sin6_addr);
 }
 
 void init_players_info(player **players) {
@@ -240,36 +221,29 @@ void im_ready() {
   }
 }
 
-void init_client_game_grid() {
-  char addr[INET6_ADDRSTRLEN];
-  inet_ntop(AF_INET6, &udp_listen_addr.sin6_addr, addr, INET6_ADDRSTRLEN);
-  printf("%s\n", addr);
+void wait_for_game_start() {
+     char buffer[SIZE_MSG];
+    struct sockaddr_in6 multicast_addr;
+    socklen_t addr_len = sizeof(multicast_addr);
 
-  char buf[SIZE_MSG];
-  memset(buf, 0, SIZE_MSG);
+    print_udp_subscription(udp_socket);
+    printf("En attente du début de la partie...\n");
+    
+    while (1) {
+        // Réception du message de début de partie en multicast
+        memset(buffer, 0, sizeof(buffer));
+        if (recvfrom(udp_socket, buffer, sizeof(buffer), 0, 
+                     (struct sockaddr *)&multicast_addr, &addr_len) < 0) {
+            perror("La réception du message de début de partie en multicast a échoué");
+            exit(EXIT_FAILURE);
+        }
 
-  if (recv(udp_socket, buf, SIZE_MSG, 0) < 0) {
-    perror("La réception de la grille a échoué");
-    exit(EXIT_FAILURE);
-  }
-
-  printf("data received : %s\n", buf);
-
-  GridData grid;
-  memset(&grid, 0, sizeof(GridData));
-
-  puts("En attente de la grille de jeu...");
-  // Réception de la grille de jeu, à partir d'un message envoyé par le serveur
-  // au groupe
-  ssize_t recu = recv(udp_socket, &grid, sizeof(GridData), 0);
-  if (recu < 0) {
-    perror("La réception de la grille a échoué");
-    exit(EXIT_FAILURE);
-  } else {
-    // ta partie Guillaume
-    puts("Grille reçue");
-  }
-  puts("En attente de la grille de jeu...");
+        // Vérification du contenu du message
+        if (strcmp(buffer, "La partie a commencé !") == 0) {
+            printf("La partie a commencé !\n");
+            break; // Sortir de la boucle lorsque la partie commence
+        }
+    }
 }
 
 int main() {
@@ -279,14 +253,12 @@ int main() {
 
   suscribe_multicast();
 
+
   im_ready(); // dernière étape avant de commencer la partie
 
-  init_client_game_grid();
+  wait_for_game_start();
 
-  /* player **players;
-  init_players_info(players);
-  grid_creation(player_id, players);
-   */
+  printf("La partie a commencé, à vous de jouer !\n");
 
   return 0;
 }
