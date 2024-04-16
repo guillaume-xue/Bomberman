@@ -247,9 +247,9 @@ void wait_for_game_start() {
     struct sockaddr_in6 multicast_addr;
     socklen_t addr_len = sizeof(multicast_addr);
 
-    printf("En attente du début de la partie...\n");
     print_udp_subscription(udp_socket);
-
+    printf("En attente du début de la partie...\n");
+    
     while (1) {
         // Réception du message de début de partie en multicast
         memset(buffer, 0, sizeof(buffer));

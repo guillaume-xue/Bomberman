@@ -69,14 +69,14 @@ void init_multicast_socket(Partie *partie) {
             partie->partie_id + 1);
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
 
-  int ifindex = 0; //if_nametoindex("wlp0s20f3"); // 
-  // if (ifindex == 0) {
-  //   perror("if_nametoindex");
-  //   close(partie->send_sock);
-  //   exit(EXIT_FAILURE);
-  // }
+  int ifindex = if_nametoindex("wlp0s20f3"); // 
+  if (ifindex == 0) {
+    perror("if_nametoindex");
+    close(partie->send_sock);
+    exit(EXIT_FAILURE);
+  }
 
-  if (setsockopt(partie->send_sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, &ifindex,
+  if (setsockopt(partie->send_sock, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex,
                  sizeof(ifindex)) < 0) {
     perror("setsockopt");
     close(partie->send_sock);
