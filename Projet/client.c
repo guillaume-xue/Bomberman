@@ -152,6 +152,7 @@ void suscribe_multicast() {
     exit(EXIT_FAILURE);
   }
 
+  
   if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifidx, sizeof(ifidx))) {
 		perror("setsockopt IPV6_MULTICAST_IF");
 		exit(EXIT_FAILURE);

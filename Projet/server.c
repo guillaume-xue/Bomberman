@@ -186,13 +186,20 @@ void signalement_debut_partie(Partie *partie) {
     
     struct sockaddr_in6 multicast_addr = partie->multicast_addr;
     socklen_t addr_size = sizeof(struct sockaddr_in6);
-    
-    if (sendto(partie->send_sock, message, strlen(message), 0, 
+    ssize_t bytes_sent = sendto(partie->send_sock, message, strlen(message), 0, 
                (struct sockaddr *)&multicast_addr, 
-               addr_size) < 0) {
+               addr_size);
+    if (bytes_sent < 0) {
         perror("L'envoi du message de début de partie en multicast a échoué");
         exit(EXIT_FAILURE);
     }
+    if (bytes_sent == 0) {
+        printf("Send : %ld \n",bytes_sent);
+    }
+    else{
+        printf(" Val : %ld \n", bytes_sent);
+    }
+
     printf("Les joueurs sont signalés!! \n");
 
     char adr_m_diff[INET6_ADDRSTRLEN];
