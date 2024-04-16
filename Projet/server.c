@@ -4,7 +4,9 @@
 
 Partie parties[MAX_PARTIES];
 
+int multicast_socket;
 int nb_partie = 0;
+//char* group_c = "239.255.255.250";
 
 pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_partie = PTHREAD_COND_INITIALIZER;
@@ -44,7 +46,7 @@ void add_partie(int client_socket, int mode_jeu, int i) {
   inet_pton(AF_INET6, "::1", &parties[i].partie_addr.sin6_addr);
 
   init_multicast_socket(&parties[i]);
-
+  printf("\n Multicast initialisation\n");
   add_player(&parties[i], client_socket);
 
   // pthread_create(&parties[nb_partie].thread_partie, NULL, handle_partie,
@@ -53,6 +55,7 @@ void add_partie(int client_socket, int mode_jeu, int i) {
 
 void init_multicast_socket(Partie *partie) {
   partie->send_sock = socket(AF_INET6, SOCK_DGRAM, 0);
+  multicast_socket = partie->send_sock;
   if (partie->send_sock < 0) {
     perror("socket for sending failed");
     exit(EXIT_FAILURE);
@@ -63,17 +66,17 @@ void init_multicast_socket(Partie *partie) {
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
   char multicast_group[INET6_ADDRSTRLEN];
   snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x",
-           partie->partie_id + 1);
+            partie->partie_id + 1);
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
 
-  int ifindex = if_nametoindex("en0");
-  if (ifindex == 0) {
-    perror("if_nametoindex");
-    close(partie->send_sock);
-    exit(EXIT_FAILURE);
-  }
+  int ifindex = 0; //if_nametoindex("wlp0s20f3"); // 
+  // if (ifindex == 0) {
+  //   perror("if_nametoindex");
+  //   close(partie->send_sock);
+  //   exit(EXIT_FAILURE);
+  // }
 
-  if (setsockopt(partie->send_sock, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex,
+  if (setsockopt(partie->send_sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, &ifindex,
                  sizeof(ifindex)) < 0) {
     perror("setsockopt");
     close(partie->send_sock);
@@ -96,7 +99,7 @@ int join_or_create(int client_socket, int mode_jeu) {
     if (parties[i].mode_jeu != -1) {
       if (parties[i].mode_jeu == mode_jeu && parties[i].nb_joueurs < 4) {
         add_player(&parties[i], client_socket);
-        pthread_mutex_unlock(&mutex_partie);
+        pthread_mutex_unlock(&mutex_partie);      
         return i;
       }
     }
@@ -105,8 +108,6 @@ int join_or_create(int client_socket, int mode_jeu) {
   if (nb_partie < MAX_PARTIES) {
     add_partie(client_socket, mode_jeu, nb_partie);
     nb_partie++;
-  } else {
-    // envoyer un signal pour que y a plus de place dans la partie
   }
 
   pthread_mutex_unlock(&mutex_partie);
@@ -166,6 +167,41 @@ void send_game_s_info(Partie *partie, int client_socket) {
   }
 }
 
+void print_udp_subscription(int sockfd) {
+    struct ipv6_mreq mreq;
+    socklen_t len = sizeof(mreq);
+  
+    if (getsockopt(sockfd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &mreq, &len) == 0) {
+        char multicast_group[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, &(mreq.ipv6mr_multiaddr), multicast_group, INET6_ADDRSTRLEN);
+        printf("Le socket est abonné au groupe multicast : %s\n", multicast_group);
+    } else {
+        perror("getsockopt(IPV6_JOIN_GROUP) failed");
+    }
+}
+
+void signalement_debut_partie(Partie *partie) {
+    char message[SIZE_MSG];
+    snprintf(message, SIZE_MSG, "La partie a commencé !");
+    
+    struct sockaddr_in6 multicast_addr = partie->multicast_addr;
+    socklen_t addr_size = sizeof(struct sockaddr_in6);
+    
+    if (sendto(partie->send_sock, message, strlen(message), 0, 
+               (struct sockaddr *)&multicast_addr, 
+               addr_size) < 0) {
+        perror("L'envoi du message de début de partie en multicast a échoué");
+        exit(EXIT_FAILURE);
+    }
+    printf("Les joueurs sont signalés!! \n");
+
+    char adr_m_diff[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &(parties[0].multicast_addr.sin6_addr),adr_m_diff, INET6_ADDRSTRLEN);
+    
+    printf("multicast port : %d , partie_port : %d , multicast_addr : %s \n", partie->multicast_addr.sin6_port, partie->partie_addr.sin6_port, adr_m_diff);
+    print_udp_subscription(partie->send_sock);
+}
+
 void *handle_client(void *arg){
   int client_socket = *(int *)arg;
 
@@ -199,6 +235,12 @@ void *handle_client(void *arg){
 
   printf("%s\n", buf);
   printf("Il reste %d places dans la partie n.%d %s\n", 4 - parties[index_partie].nb_joueurs, index_partie, (4 - parties[index_partie].nb_joueurs == 0) ? "\033[31m\nNous sommes au complet, la partie peut commencer !!\033[0m" : "");
+
+  if (parties[index_partie].nb_joueurs == 4) {
+        // Si quatre joueurs sont connectés, envoyer le message de début de partie en multicast
+        signalement_debut_partie(&parties[index_partie]);
+  }
+
   return NULL;
 }
 

@@ -32,15 +32,21 @@ typedef struct {
   char adr_m_diff[INET6_ADDRSTRLEN];
 } ServerMessage;
 
-char *get_color(int x);
+typedef struct {
+    int game_start_flag;
+} GameStartMessage;
 
+char *get_color(int x);
 void init_mutex();
 void init_parties();
 void add_player(Partie *partie, int client_socket);
 void add_partie(int client_socket, int mode_jeu, int index_partie);
 int join_or_create(int client_socket, int mode_jeu);
+void signalement_debut_partie(Partie* partie);
+void print_multicast_address(struct sockaddr_in6 *multicast_addr);
 void *handle_client(void *arg);
 void init_multicast_socket(Partie *partie);
 void send_game_s_info(Partie *partie, int client_socket);
 
+void print_udp_subscription(int sockfd);
 #endif
