@@ -168,8 +168,8 @@ void suscribe_multicast() {
 
   udp_listen_addr.sin6_family = AF_INET6;
   udp_listen_addr.sin6_port = htons(multicast_port);
-  inet_pton(AF_INET6, multicast_addr, &udp_listen_addr.sin6_addr);
-  // udp_listen_addr.sin6_addr = in6addr_any;
+  // inet_pton(AF_INET6, multicast_addr, &udp_listen_addr.sin6_addr);
+  udp_listen_addr.sin6_addr = in6addr_any;
 
   if (bind(udp_socket, (struct sockaddr *)&udp_listen_addr,
            sizeof(udp_listen_addr)) < 0) {
@@ -188,7 +188,8 @@ void suscribe_multicast() {
 
   struct ipv6_mreq group;
   group.ipv6mr_interface = ifindex;
-  if (inet_pton(AF_INET6, multicast_addr, &group.ipv6mr_multiaddr) != 1) {
+  if (inet_pton(AF_INET6, multicast_addr, &group.ipv6mr_multiaddr.s6_addr) <
+      0) {
     perror("Erreur de conversion de l'adresse multicast");
     exit(EXIT_FAILURE);
   }
