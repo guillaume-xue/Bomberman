@@ -6,25 +6,25 @@ int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
 int game_mode;
-//char* group_c = "239.255.255.250";
+// char* group_c = "239.255.255.250";
 GameMessage received_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_send_addr;   // adresse de la partie en UDP
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
-
 void print_udp_subscription(int sockfd) {
-    struct ipv6_mreq mreq;
-    socklen_t len = sizeof(mreq);
-  
-    if (getsockopt(sockfd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &mreq, &len) == 0) {
-        char multicast_group[INET6_ADDRSTRLEN];
-        inet_ntop(AF_INET6, &(mreq.ipv6mr_multiaddr), multicast_group, INET6_ADDRSTRLEN);
-        printf("Le socket est abonné au groupe multicast : %s\n", multicast_group);
-    } else {
-        perror("getsockopt(IPV6_JOIN_GROUP) failed");
-    }
+  struct ipv6_mreq mreq;
+  socklen_t len = sizeof(mreq);
+
+  if (getsockopt(sockfd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &mreq, &len) == 0) {
+    char multicast_group[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET6, &(mreq.ipv6mr_multiaddr), multicast_group,
+              INET6_ADDRSTRLEN);
+    printf("Le socket est abonné au groupe multicast : %s\n", multicast_group);
+  } else {
+    perror("getsockopt(IPV6_JOIN_GROUP) failed");
+  }
 }
 
 void receive_gmsg(int client_socket) {
@@ -115,71 +115,124 @@ void suscribe_multicast() {
     team_number = serv_message.eq;
 
     multicast_port = serv_message.port_m_diff;
-    
+
     partie_port = serv_message.port_udp;
 
     strcpy(multicast_addr, serv_message.adr_m_diff);
 
     color = id_to_color(player_id);
-    printf("multicast port : %d , partie_port : %d , multicast_addr : %s \n", multicast_port, partie_port,multicast_addr);
+  }
+
+  if ((udp_socket = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+    perror("echec de socket");
+  }
+
+  int ok = 1;
+  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &ok, sizeof(ok)) < 0) {
+    perror("echec de SO_REUSEADDR");
+    close(udp_socket);
+  }
+
+  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEPORT, &ok, sizeof(ok)) < 0) {
+    perror("setsockopt(SO_REUSEPORT) failed");
+    exit(EXIT_FAILURE);
+  }
+
+  /* Initialisation de l'adresse de reception */
+  struct sockaddr_in6 adr;
+  memset(&adr, 0, sizeof(adr));
+  adr.sin6_family = AF_INET6;
+  adr.sin6_addr = in6addr_any;
+  adr.sin6_port = htons(multicast_port);
+
+  if (bind(udp_socket, (struct sockaddr *)&adr, sizeof(adr))) {
+    perror("echec de bind");
+    close(udp_socket);
+  }
+
+  /* initialisation de l'interface locale autorisant le multicast IPv6 */
+  int ifindex = if_nametoindex("en0");
+  if (ifindex == 0)
+    perror("if_nametoindex");
+
+  /* s'abonner au groupe multicast */
+  struct ipv6_mreq group;
+  if (inet_pton(AF_INET6, multicast_addr, &group.ipv6mr_multiaddr) != 1) {
+    perror("Erreur de conversion d'adresse multicast");
+    close(udp_socket);
+    exit(EXIT_FAILURE);
+  }
+  group.ipv6mr_interface = ifindex;
+
+  char debug_address[INET6_ADDRSTRLEN];
+  inet_ntop(AF_INET6, &group.ipv6mr_multiaddr, debug_address, INET6_ADDRSTRLEN);
+  printf("Multicast Address: %s Port: %d Scope ID: %d\n", debug_address,
+         ntohs(multicast_port), udp_send_addr.sin6_scope_id);
+
+  if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, &group,
+                 sizeof group) < 0) {
+    perror("echec de abonnement groupe");
+    close(udp_socket);
+    exit(EXIT_FAILURE);
   }
 
   // Maintenant on se connecte en UDP à la partie
-  udp_socket = socket(AF_INET6, SOCK_DGRAM, 0);
-  if (udp_socket == -1) {
-    perror("La création de la socket UDP a échoué");
-    exit(EXIT_FAILURE);
-  }
-  //printf("Socket UDP créée avec succès.\n");
+  // udp_socket = socket(AF_INET6, SOCK_DGRAM, 0);
+  // if (udp_socket == -1) {
+  //   perror("La création de la socket UDP a échoué");
+  //   exit(EXIT_FAILURE);
+  // }
+  // // printf("Socket UDP créée avec succès.\n");
 
-  int reuse = 1;
-  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) <
-      0) {
-    perror("setsockopt(SO_REUSEADDR) failed");
-    exit(EXIT_FAILURE);
-  }
+  // int reuse = 1;
+  // if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse))
+  // <
+  //     0) {
+  //   perror("setsockopt(SO_REUSEADDR) failed");
+  //   exit(EXIT_FAILURE);
+  // }
 
-  if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) <
-      0) {
-    perror("setsockopt(SO_REUSEADDR) failed");
-    exit(EXIT_FAILURE);
-   }
+  // if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse))
+  // <
+  //     0) {
+  //   perror("setsockopt(SO_REUSEADDR) failed");
+  //   exit(EXIT_FAILURE);
+  // }
 
+  // udp_listen_addr.sin6_family = AF_INET6;
+  // udp_listen_addr.sin6_port = htons(multicast_port);
+  // udp_listen_addr.sin6_addr = in6addr_any;
 
-  udp_listen_addr.sin6_family = AF_INET6;
-  udp_listen_addr.sin6_port = htons(multicast_port);
-  // inet_pton(AF_INET6, multicast_addr, &udp_listen_addr.sin6_addr);
-  udp_listen_addr.sin6_addr = in6addr_any;
+  // if (bind(udp_socket, (struct sockaddr *)&udp_listen_addr,
+  //          sizeof(udp_listen_addr)) < 0) {
+  //   perror("La liaison de la socket UDP a échoué");
+  //   exit(EXIT_FAILURE);
+  // }
+  // // printf("Socket UDP liée avec succès à l'adresse et au port
+  // multicast.\n");
 
-  if (bind(udp_socket, (struct sockaddr *)&udp_listen_addr,
-           sizeof(udp_listen_addr)) < 0) {
-    perror("La liaison de la socket UDP a échoué");
-    exit(EXIT_FAILURE);
-  }
-  //printf("Socket UDP liée avec succès à l'adresse et au port multicast.\n");
+  // // Abonnement au groupe multicast
+  // int ifindex = if_nametoindex(
+  //     "en0"); // à check en fonction de la machine sur laquelle on lance,
 
-  // Abonnement au groupe multicast
-  int ifindex = if_nametoindex(
-      "wlp0s20f3"); // à check en fonction de la machine sur laquelle on lance,
+  // if (ifindex == 0) {
+  //   perror("if_nametoindex failed");
+  //   exit(EXIT_FAILURE);
+  // }
 
-  if (ifindex == 0) {
-    perror("if_nametoindex failed");
-    exit(EXIT_FAILURE);
-  }
+  // struct ipv6_mreq group;
+  // group.ipv6mr_interface = ifindex;
+  // if (inet_pton(AF_INET6, multicast_addr, &group.ipv6mr_multiaddr.s6_addr) <
+  //     0) {
+  //   perror("Erreur de conversion de l'adresse multicast");
+  //   exit(EXIT_FAILURE);
+  // }
 
-  struct ipv6_mreq group;
-  group.ipv6mr_interface = ifindex;
-  if (inet_pton(AF_INET6, multicast_addr, &group.ipv6mr_multiaddr.s6_addr) <
-      0) {
-    perror("Erreur de conversion de l'adresse multicast");
-    exit(EXIT_FAILURE);
-  }
-
-  if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, &group,
-                 sizeof(group)) < 0) {
-    perror("L'abonnement au groupe multicast a échoué");
-    exit(EXIT_FAILURE);
-  }
+  // if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, &group,
+  //                sizeof(group)) < 0) {
+  //   perror("L'abonnement au groupe multicast a échoué");
+  //   exit(EXIT_FAILURE);
+  // }
 
   udp_send_addr.sin6_family = AF_INET6;
   udp_send_addr.sin6_port = htons(partie_port);
@@ -222,28 +275,51 @@ void im_ready() {
 }
 
 void wait_for_game_start() {
-     char buffer[SIZE_MSG];
-    struct sockaddr_in6 multicast_addr;
-    socklen_t addr_len = sizeof(multicast_addr);
 
-    print_udp_subscription(udp_socket);
-    printf("En attente du début de la partie...\n");
-    
-    while (1) {
-        // Réception du message de début de partie en multicast
-        memset(buffer, 0, sizeof(buffer));
-        if (recvfrom(udp_socket, buffer, sizeof(buffer), 0, 
-                     (struct sockaddr *)&multicast_addr, &addr_len) < 0) {
-            perror("La réception du message de début de partie en multicast a échoué");
-            exit(EXIT_FAILURE);
-        }
+  // on peut lire avec read
+  char buf[10];
+  memset(buf, 0, sizeof(buf));
+  if (read(udp_socket, buf, sizeof(buf) - 1) < 0) {
+    perror("echec de read");
+  }
+  printf("Message : %s\n", buf);
 
-        // Vérification du contenu du message
-        if (strcmp(buffer, "La partie a commencé !") == 0) {
-            printf("La partie a commencé !\n");
-            break; // Sortir de la boucle lorsque la partie commence
-        }
-    }
+  // ou avec recv ou recvfrom
+  struct sockaddr_in6 diffadr;
+  int recu;
+  socklen_t difflen = sizeof(diffadr);
+
+  memset(buf, 0, sizeof(buf));
+  if ((recu = recvfrom(udp_socket, buf, sizeof(buf) - 1, 0,
+                       (struct sockaddr *)&diffadr, &difflen)) < 0) {
+    perror("echec de recvfrom.");
+  }
+
+  printf("Message : %s\n", buf);
+  printf("\t de ");
+
+  // char buffer[SIZE_MSG];
+  // struct sockaddr_in6 partie_addr;
+  // socklen_t addr_len = sizeof(partie_addr);
+
+  // print_udp_subscription(udp_socket);
+  // printf("En attente du début de la partie...\n");
+
+  // while (1) {
+  //     // Réception du message de début de partie en multicast
+  //     memset(buffer, 0, sizeof(buffer));
+  //     if (recvfrom(udp_socket, buffer, sizeof(buffer), 0,
+  //                  (struct sockaddr *)&partie_addr, &addr_len) < 0) {
+  //         perror("La réception du message de début de partie en multicast a
+  //         échoué"); exit(EXIT_FAILURE);
+  //     }
+
+  //     // Vérification du contenu du message
+  //     if (strcmp(buffer, "La partie a commencé !") == 0) {
+  //         printf("La partie a commencé !\n");
+  //         break; // Sortir de la boucle lorsque la partie commence
+  //     }
+  // }
 }
 
 int main() {
@@ -253,12 +329,9 @@ int main() {
 
   suscribe_multicast();
 
-
   im_ready(); // dernière étape avant de commencer la partie
 
   wait_for_game_start();
 
   printf("La partie a commencé, à vous de jouer !\n");
-
-  return 0;
 }

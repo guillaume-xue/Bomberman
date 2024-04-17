@@ -4,9 +4,7 @@
 
 Partie parties[MAX_PARTIES];
 
-int multicast_socket;
 int nb_partie = 0;
-//char* group_c = "239.255.255.250";
 
 pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_partie = PTHREAD_COND_INITIALIZER;
@@ -50,39 +48,7 @@ void add_partie(int client_socket, int mode_jeu) {
   inet_pton(AF_INET6, "::1", &parties[i].partie_addr.sin6_addr);
 
   init_multicast_socket(&parties[i]);
-  printf("\n Multicast initialisation\n");
   add_player(&parties[i], client_socket);
-}
-
-void init_multicast_socket(Partie *partie) {
-  partie->send_sock = socket(AF_INET6, SOCK_DGRAM, 0);
-  multicast_socket = partie->send_sock;
-  if (partie->send_sock < 0) {
-    perror("socket for sending failed");
-    exit(EXIT_FAILURE);
-  }
-
-  memset(&partie->multicast_addr, 0, sizeof(partie->multicast_addr));
-  partie->multicast_addr.sin6_family = AF_INET6;
-  partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
-  char multicast_group[INET6_ADDRSTRLEN];
-  snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x",
-            partie->partie_id + 1);
-  inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
-
-  int ifindex = if_nametoindex("wlp0s20f3"); // 
-  if (ifindex == 0) {
-    perror("if_nametoindex");
-    close(partie->send_sock);
-    exit(EXIT_FAILURE);
-  }
-
-  if (setsockopt(partie->send_sock, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex,
-                 sizeof(ifindex)) < 0) {
-    perror("setsockopt");
-    close(partie->send_sock);
-    exit(EXIT_FAILURE);
-  }
 }
 
 void add_player(Partie *partie, int client_socket) {
@@ -100,7 +66,7 @@ int join_or_create(int client_socket, int mode_jeu) {
     if (parties[i].mode_jeu != -1) {
       if (parties[i].mode_jeu == mode_jeu && parties[i].nb_joueurs < 4) {
         add_player(&parties[i], client_socket);
-        pthread_mutex_unlock(&mutex_partie);      
+        pthread_mutex_unlock(&mutex_partie);
         return i;
       }
     }
@@ -123,8 +89,8 @@ void send_game_s_info(Partie *partie, int client_socket) {
   server_message.id = parties[partie->partie_id].nb_joueurs;
 
   server_message.eq = parties[partie->partie_id].mode_jeu == 1
-                        ? 1
-                        : (server_message.id % 2) + 1;
+                          ? 1
+                          : (server_message.id % 2) + 1;
 
   server_message.port_udp = parties[partie->partie_id].partie_addr.sin6_port;
   server_message.port_m_diff =
@@ -139,49 +105,90 @@ void send_game_s_info(Partie *partie, int client_socket) {
   }
 }
 
-void print_udp_subscription(int sockfd) {
-    struct ipv6_mreq mreq;
-    socklen_t len = sizeof(mreq);
-  
-    if (getsockopt(sockfd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &mreq, &len) == 0) {
-        char multicast_group[INET6_ADDRSTRLEN];
-        inet_ntop(AF_INET6, &(mreq.ipv6mr_multiaddr), multicast_group, INET6_ADDRSTRLEN);
-        printf("Le socket est abonné au groupe multicast : %s\n", multicast_group);
-    } else {
-        perror("getsockopt(IPV6_JOIN_GROUP) failed");
-    }
+
+void init_multicast_socket(Partie *partie) {
+  partie->send_sock = socket(AF_INET6, SOCK_DGRAM, 0);
+  if (partie->send_sock < 0) {
+    perror("socket for sending failed");
+    exit(EXIT_FAILURE);
+  }
+
+  /* Initialisation de l'adresse d'abonnement */
+  memset(&partie->multicast_addr, 0, sizeof(partie->multicast_addr));
+  partie->multicast_addr.sin6_family = AF_INET6;
+  partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
+  char multicast_group[INET6_ADDRSTRLEN];
+  snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x", partie->partie_id + 1);
+  inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
+
+  int ifindex = if_nametoindex("en0");
+  if (ifindex == 0) {
+    perror("if_nametoindex");
+    close(partie->send_sock);
+    exit(EXIT_FAILURE);
+  }
+
+  partie->multicast_addr.sin6_scope_id = ifindex;
+
+  char debug_address[INET6_ADDRSTRLEN];
+  inet_ntop(AF_INET6, &partie->multicast_addr.sin6_addr, debug_address, INET6_ADDRSTRLEN);
+  printf("Multicast Address: %s Port: %d Scope ID: %d\n", debug_address, ntohs(partie->multicast_addr.sin6_port), partie->multicast_addr.sin6_scope_id);
 }
 
 void signalement_debut_partie(Partie *partie) {
-    char message[SIZE_MSG];
-    snprintf(message, SIZE_MSG, "La partie a commencé !");
-    
-    struct sockaddr_in6 multicast_addr = partie->multicast_addr;
-    socklen_t addr_size = sizeof(struct sockaddr_in6);
-    ssize_t bytes_sent = sendto(partie->send_sock, message, strlen(message), 0, 
-               (struct sockaddr *)&multicast_addr, 
-               addr_size);
-    if (bytes_sent < 0) {
-        perror("L'envoi du message de début de partie en multicast a échoué");
-        exit(EXIT_FAILURE);
-    }
-    if (bytes_sent == 0) {
-        printf("Send : %ld \n",bytes_sent);
-    }
-    else{
-        printf(" Val : %ld \n", bytes_sent);
-    }
+  char message[SIZE_MSG];
+  snprintf(message, SIZE_MSG, "La partie a commencé !");
+  ssize_t size;
 
-    printf("Les joueurs sont signalés!! \n");
+  // if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&partie->multicast_addr, sizeof(partie->multicast_addr))) < 0) {
+  //   perror("erreur send");
+  // }
+  
+  struct sockaddr_in6 gradr;
+  memset(&gradr, 0, sizeof(gradr));
+  gradr.sin6_family = AF_INET6;
+  gradr.sin6_addr = partie->multicast_addr.sin6_addr;
+  gradr.sin6_port = htons(partie->multicast_addr.sin6_port);
 
-    char adr_m_diff[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &(parties[0].multicast_addr.sin6_addr),adr_m_diff, INET6_ADDRSTRLEN);
-    
-    printf("multicast port : %d , partie_port : %d , multicast_addr : %s \n", partie->multicast_addr.sin6_port, partie->partie_addr.sin6_port, adr_m_diff);
-    print_udp_subscription(partie->send_sock);
+  int ifindex = if_nametoindex("en0");
+  if (ifindex == 0)
+      perror("if_nametoindex");
+
+  gradr.sin6_scope_id = ifindex;
+
+  if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&gradr, sizeof(gradr))) < 0){
+    perror("erreur send");
+  }
+  
+  printf("send : %ld\n", size);
+
+  // struct sockaddr_in6 multicast_addr = partie->multicast_addr;
+  // socklen_t addr_size = sizeof(struct sockaddr_in6);
+  // ssize_t bytes_sent = sendto(partie->send_sock, message, strlen(message), 0,
+  //            (struct sockaddr *)&multicast_addr,
+  //            addr_size);
+  // if (bytes_sent < 0) {
+  //     perror("L'envoi du message de début de partie en multicast a échoué");
+  //     exit(EXIT_FAILURE);
+  // }
+  // if (bytes_sent == 0) {
+  //     printf("Send : %ld \n",bytes_sent);
+  // }
+  // else{
+  //     printf(" Val : %ld \n", bytes_sent);
+  // }
+
+  // printf("Les joueurs sont signalés!! \n");
+
+  // char adr_m_diff[INET6_ADDRSTRLEN];
+  // inet_ntop(AF_INET6, &(parties[0].multicast_addr.sin6_addr),adr_m_diff,
+  // INET6_ADDRSTRLEN);
+
+  // printf("multicast port : %d , partie_port : %d , multicast_addr : %s \n",
+  // partie->multicast_addr.sin6_port, partie->partie_addr.sin6_port,
 }
 
-void *handle_client(void *arg){
+void *handle_client(void *arg) {
   int client_socket = *(int *)arg;
 
   GameMessage received_message;
@@ -240,45 +247,8 @@ void *handle_client(void *arg){
     }
     puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
 
-    char buf[SIZE_MSG];
-    memset(buf, 0, SIZE_MSG);
-    snprintf(buf, SIZE_MSG, "test multicast !!");
-    if (sendto(parties[index_partie].send_sock, buf, SIZE_MSG, 0,
-               (struct sockaddr *)&parties[index_partie].multicast_addr,
-               sizeof(parties[index_partie].multicast_addr)) < 0) {
-      perror("L'envoi du message multicast a échoué");
-      exit(EXIT_FAILURE);
-    }
-
-    char addr[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &(parties[index_partie].multicast_addr.sin6_addr), addr,
-              INET6_ADDRSTRLEN);
-
-    printf("L'adresse multicast est : %s\n", addr);
-
-    GridData start_msg;
-    memset(&start_msg, 0, sizeof(GridData));
-
-    start_msg.entete.CODEREQ = 11; 
-    start_msg.longueur = 100;
-    start_msg.largeur = 100;
-    init_game_grid(&start_msg.cases, start_msg.longueur, start_msg.largeur);
-
-    if (sendto(parties[index_partie].send_sock, &start_msg, sizeof(GridData), 0,
-               (struct sockaddr *)&parties[index_partie].multicast_addr,
-               sizeof(parties[index_partie].multicast_addr)) < 0) {
-      perror("L'envoi de la grille a échoué");
-      free(start_msg.cases);
-      exit(EXIT_FAILURE);
-    }
-    puts("\033[90mLa grille a été envoyée à tous les joueurs.\033[0m\n");
+    signalement_debut_partie(&parties[index_partie]);
   }
-  // printf("Il reste %d places dans la partie n.%d %s\n", 4 - parties[index_partie].nb_joueurs, index_partie, (4 - parties[index_partie].nb_joueurs == 0) ? "\033[31m\nNous sommes au complet, la partie peut commencer !!\033[0m" : "");
-
-  // if (parties[index_partie].nb_joueurs == 4) {
-  //       // Si quatre joueurs sont connectés, envoyer le message de début de partie en multicast
-  //       signalement_debut_partie(&parties[index_partie]);
-  // }
 
   return NULL;
 }
@@ -296,7 +266,7 @@ void init_game_grid(uint8_t **cases, uint8_t longueur, uint8_t largeur) {
       (*cases)[i * longueur + j] = CASE_VIDE;
     }
   }
-  
+
   (*cases)[0 * longueur + 0] = JOUEUR0;
   (*cases)[0 * longueur + 99] = JOUEUR1;
   (*cases)[99 * longueur + 0] = JOUEUR2;
