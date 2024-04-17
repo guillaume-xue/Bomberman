@@ -18,7 +18,6 @@
 #define MAX_CLIENTS 4
 #define MAX_PARTIES 4
 #define TEXT_SIZE 255
-#define NB_CASES_MAX 512
 #define NB_WALLS 100
 
 typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, BOMB, QUIT } ACTION;
@@ -54,7 +53,7 @@ typedef struct {
     int NUM; // Numéro du message modulo 2^16
     int HAUTEUR; // Hauteur de la grille
     int LARGEUR; // Largeur de la grille
-    char cases[NB_CASES_MAX]; // Tableau de cases de la grille
+    char *cases;// Tableau de cases de la grille
 } GrilleJeu;
 
 // Structure représentant les paramètres du serveur

@@ -3,6 +3,7 @@
 
 #include "config.h"
 
-int print_grid(player *current_player, player **players);
+void refresh_game(line* l, GrilleJeu *g);
+void print_grid(player *current_player, GrilleJeu *g);
 
 #endif 

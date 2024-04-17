@@ -1,16 +1,16 @@
 // Build with -lncurses option
 
-#include "grid.h"
 #include <ncurses.h>
 #include <signal.h>
+#include "grid.h"
 
-void refresh_game(line* l) {
+void refresh_game(line *l, GrilleJeu *g) {
     // Update grid
     int x,y;
-    for (y = 0; y < b->hauteur; y++) {
-        for (x = 0; x < b->largeur; x++) {
+    for (y = 0; y < g->HAUTEUR; y++) {
+        for (x = 0; x < g->LARGEUR; x++) {
             char c;
-            switch (get_grid(x, y)) {
+            switch (g->cases[y][x]) {
                 case 0:
                     c = ' '; // Empty
                     break;
@@ -45,22 +45,22 @@ void refresh_game(line* l) {
             mvaddch(y+1,x+1,c);
         }
     }
-    for (x = 0; x < b->largeur+2; x++) {
+    for (x = 0; x < g->LARGEUR+2; x++) {
         mvaddch(0, x, '-');
-        mvaddch(b->hauteur+1, x, '-');
+        mvaddch(g->HAUTEUR+1, x, '-');
     }
-    for (y = 0; y < b->hauteur+2; y++) {
+    for (y = 0; y < g->HAUTEUR+2; y++) {
         mvaddch(y, 0, '|');
-        mvaddch(y, b->largeur+1, '|');
+        mvaddch(y, g->LARGEUR+1, '|');
     }
     // Update chat text
     attron(COLOR_PAIR(1)); // Enable custom color 1
     attron(A_BOLD); // Enable bold
-    for (x = 0; x < b->largeur+2; x++) {
+    for (x = 0; x < g->LARGEUR+2; x++) {
         if (x >= TEXT_SIZE || x >= l->cursor)
-            mvaddch(b->hauteur+2, x, ' ');
+            mvaddch(g->HAUTEUR+2, x, ' ');
         else
-            mvaddch(b->hauteur+2, x, l->data[x]);
+            mvaddch(g->HAUTEUR+2, x, l->data[x]);
     }
     attroff(A_BOLD); // Disable bold
     attroff(COLOR_PAIR(1)); // Disable custom color 1
@@ -104,13 +104,41 @@ ACTION control(line* l) {
     return a;
 }
 
-int print_grid(player *current_player, player **players) {
-    line* l = malloc(sizeof(line) + 1);
+bool perform_action(player *p) {
+    int xd = 0;
+    int yd = 0;
+    switch (p->action) {
+        case LEFT:
+            xd = -1; yd = 0; break;
+        case RIGHT:
+            xd = 1; yd = 0; break;
+        case UP:
+            xd = 0; yd = -1; break;
+        case DOWN:
+            xd = 0; yd = 1; break;
+        case BOMB:
+            p->b->set = true;
+            break;
+        case QUIT:
+            return true;
+        default: break;
+    }
+
+    p->p->x += xd;
+    p->p->y += yd;
+    p->b->x = p->p->x;
+    p->b->y = p->p->y;
+
+    return false;
+}
+
+void print_grid(player *current_player, GrilleJeu *g) {
+
+    line* l = malloc(sizeof(line));
     if (l == NULL) {
         perror("Memory allocation error for 'l'");
         exit(EXIT_FAILURE);
     }
-
     l->cursor = 0;
 
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
@@ -126,8 +154,8 @@ int print_grid(player *current_player, player **players) {
 
     while (true) {
         current_player->action = control(l); // Update the action of the current player
-        if (perform_action_all()) break;
-        refresh_game(l);
+        if (perform_action(current_player)) break;
+        refresh_game(l, g);
         usleep(30 * 1000);
     }
 
@@ -135,7 +163,4 @@ int print_grid(player *current_player, player **players) {
     endwin(); /* End curses mode */
 
     free(l);
-    free(b);
-
-    return 0;
 }
