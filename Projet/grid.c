@@ -4,13 +4,17 @@
 #include <signal.h>
 #include "grid.h"
 
+int get_grid(GrilleJeu *g, int x, int y) {
+    return g->cases[(y*g->LARGEUR) + x];
+}
+
 void refresh_game(line *l, GrilleJeu *g) {
     // Update grid
     int x,y;
     for (y = 0; y < g->HAUTEUR; y++) {
         for (x = 0; x < g->LARGEUR; x++) {
             char c;
-            switch (g->cases[y][x]) {
+            switch (get_grid(g, x, y)) {
                 case 0:
                     c = ' '; // Empty
                     break;
