@@ -107,6 +107,7 @@ void send_game_s_info(Partie *partie, int client_socket) {
 
 
 void init_multicast_socket(Partie *partie) {
+  // Création de la socket 
   partie->send_sock = socket(AF_INET6, SOCK_DGRAM, 0);
   if (partie->send_sock < 0) {
     perror("socket for sending failed");
@@ -116,12 +117,12 @@ void init_multicast_socket(Partie *partie) {
   /* Initialisation de l'adresse d'abonnement */
   memset(&partie->multicast_addr, 0, sizeof(partie->multicast_addr));
   partie->multicast_addr.sin6_family = AF_INET6;
-  partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
   char multicast_group[INET6_ADDRSTRLEN];
   snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x", partie->partie_id + 1);
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
-
-  int ifindex = if_nametoindex("en0");
+  partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
+  
+  int ifindex = if_nametoindex("wlp0s20f3");
   if (ifindex == 0) {
     perror("if_nametoindex");
     close(partie->send_sock);
@@ -130,9 +131,7 @@ void init_multicast_socket(Partie *partie) {
 
   partie->multicast_addr.sin6_scope_id = ifindex;
 
-  char debug_address[INET6_ADDRSTRLEN];
-  inet_ntop(AF_INET6, &partie->multicast_addr.sin6_addr, debug_address, INET6_ADDRSTRLEN);
-  printf("Multicast Address: %s Port: %d Scope ID: %d\n", debug_address, ntohs(partie->multicast_addr.sin6_port), partie->multicast_addr.sin6_scope_id);
+  printf("Multicast Address: %s Port: %d Scope ID: %d\n", multicast_group, ntohs(partie->multicast_addr.sin6_port), partie->multicast_addr.sin6_scope_id);
 }
 
 void signalement_debut_partie(Partie *partie) {
@@ -150,7 +149,7 @@ void signalement_debut_partie(Partie *partie) {
   gradr.sin6_addr = partie->multicast_addr.sin6_addr;
   gradr.sin6_port = htons(partie->multicast_addr.sin6_port);
 
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("wlp0s20f3");
   if (ifindex == 0)
       perror("if_nametoindex");
 

@@ -17,9 +17,7 @@ typedef struct {
 
   int send_sock;  // sock pour envoyer des messages multicast aux clients
   struct sockaddr_in6 multicast_addr; // adresse multicast
-
-  struct sockaddr_in6 partie_addr;  // adresse de la partie
-
+  
   int clients_socket_tcp[MAX_CLIENTS];  // sockets des clients, pour communiquer avec eux
   int clients_playing[MAX_CLIENTS];  // id des clients, afin de savoir qui est encore connecté dans la partie
 } Partie;
