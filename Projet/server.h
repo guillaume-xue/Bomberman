@@ -17,7 +17,9 @@ typedef struct {
 
   int send_sock;  // sock pour envoyer des messages multicast aux clients
   struct sockaddr_in6 multicast_addr; // adresse multicast
-  
+
+  struct sockaddr_in6 partie_addr;  // adresse de la partie
+
   int clients_socket_tcp[MAX_CLIENTS];  // sockets des clients, pour communiquer avec eux
   int clients_playing[MAX_CLIENTS];  // id des clients, afin de savoir qui est encore connecté dans la partie
 } Partie;
@@ -65,18 +67,13 @@ typedef struct {
     uint8_t* updates; // Pointeur vers un tableau dynamique pour les mises à jour
 } GridMaj;
 
-char *get_color(int x);
 void init_mutex();
 void init_parties();
 void add_player(Partie *partie, int client_socket);
 void add_partie(int client_socket, int mode_jeu);
 int join_or_create(int client_socket, int mode_jeu);
-void signalement_debut_partie(Partie* partie);
-void print_multicast_address(struct sockaddr_in6 *multicast_addr);
 void *handle_client(void *arg);
 void init_multicast_socket(Partie *partie);
 void send_game_s_info(Partie *partie, int client_socket);
-void init_game_grid(uint8_t **cases, uint8_t longueur, uint8_t largeur);
 
-void print_udp_subscription(int sockfd);
 #endif
