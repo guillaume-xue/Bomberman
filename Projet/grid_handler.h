@@ -11,7 +11,6 @@ bool is_bomb(int x, int y);
 bool is_wall_breakable(int x, int y);
 void set_grid(int x, int y, int v);
 int get_grid(int x, int y);
-void explode_bomb();
-void alarm_handler(int signum);
+void clear_grid(int x, int y);
 
 #endif

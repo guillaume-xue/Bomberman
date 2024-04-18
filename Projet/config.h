@@ -48,14 +48,6 @@ typedef struct {
     char adr_m_diff[INET6_ADDRSTRLEN];
 } ServerMessage;
 
-// Structure représentant la grille de jeu
-typedef struct {
-    int NUM; // Numéro du message modulo 2^16
-    int HAUTEUR; // Hauteur de la grille
-    int LARGEUR; // Largeur de la grille
-    char *cases;// Tableau de cases de la grille
-} GrilleJeu;
-
 // Structure représentant les paramètres du serveur
 typedef struct {
     int taille_grille; // Taille de la grille de jeu
@@ -75,10 +67,12 @@ typedef struct {
     struct sockaddr_in6 partie_addr;  // adresse de la partie
 } Partie;
 
-typedef struct board {
-    char* grid;
-    int largeur;
-    int hauteur;
+// Structure représentant la grille de jeu
+typedef struct board{
+    int NUM; // Numéro du message modulo 2^16
+    int HAUTEUR; // Hauteur de la grille
+    int LARGEUR; // Largeur de la grille
+    char *cases;// Tableau de cases de la grille
 } board;
 
 typedef struct line {
@@ -98,9 +92,9 @@ typedef struct bomb {
 } bomb;
 
 typedef struct player {
+    int id;
     pos *p;
     bomb *b;
-    GameMessage *gmsg;
     ACTION action;
 } player;
 
