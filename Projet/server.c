@@ -140,25 +140,25 @@ void signalement_debut_partie(Partie *partie) {
   snprintf(message, SIZE_MSG, "La partie a commencé !");
   ssize_t size;
 
-  // if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&partie->multicast_addr, sizeof(partie->multicast_addr))) < 0) {
-  //   perror("erreur send");
-  // }
-  
-  struct sockaddr_in6 gradr;
-  memset(&gradr, 0, sizeof(gradr));
-  gradr.sin6_family = AF_INET6;
-  gradr.sin6_addr = partie->multicast_addr.sin6_addr;
-  gradr.sin6_port = htons(partie->multicast_addr.sin6_port);
-
-  int ifindex = if_nametoindex("en0");
-  if (ifindex == 0)
-      perror("if_nametoindex");
-
-  gradr.sin6_scope_id = ifindex;
-
-  if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&gradr, sizeof(gradr))) < 0){
+  if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&partie->multicast_addr, sizeof(partie->multicast_addr))) < 0) {
     perror("erreur send");
   }
+  
+  // struct sockaddr_in6 gradr;
+  // memset(&gradr, 0, sizeof(gradr));
+  // gradr.sin6_family = AF_INET6;
+  // gradr.sin6_addr = partie->multicast_addr.sin6_addr;
+  // gradr.sin6_port = htons(partie->multicast_addr.sin6_port);
+
+  // int ifindex = if_nametoindex("en0");
+  // if (ifindex == 0)
+  //     perror("if_nametoindex");
+
+  // gradr.sin6_scope_id = ifindex;
+
+  // if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&gradr, sizeof(gradr))) < 0){
+  //   perror("erreur send");
+  // }
   
   printf("send : %ld\n", size);
 

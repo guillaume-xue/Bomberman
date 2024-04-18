@@ -143,7 +143,7 @@ void suscribe_multicast() {
   memset(&adr, 0, sizeof(adr));
   adr.sin6_family = AF_INET6;
   adr.sin6_addr = in6addr_any;
-  adr.sin6_port = htons(multicast_port);
+  adr.sin6_port = multicast_port;
 
   if (bind(udp_socket, (struct sockaddr *)&adr, sizeof(adr))) {
     perror("echec de bind");
@@ -235,7 +235,7 @@ void suscribe_multicast() {
   // }
 
   udp_send_addr.sin6_family = AF_INET6;
-  udp_send_addr.sin6_port = htons(partie_port);
+  udp_send_addr.sin6_port = partie_port;
   inet_pton(AF_INET6, multicast_addr, &udp_send_addr.sin6_addr);
 }
 
@@ -277,17 +277,24 @@ void im_ready() {
 void wait_for_game_start() {
 
   // on peut lire avec read
-  char buf[10];
+  char buf[100];
   memset(buf, 0, sizeof(buf));
-  if (read(udp_socket, buf, sizeof(buf) - 1) < 0) {
-    perror("echec de read");
-  }
-  printf("Message : %s\n", buf);
 
   // ou avec recv ou recvfrom
   struct sockaddr_in6 diffadr;
   int recu;
   socklen_t difflen = sizeof(diffadr);
+
+  if (recvfrom(udp_socket, buf, sizeof(buf) - 1, 0,
+               (struct sockaddr *)&diffadr, &difflen) < 0) {
+    perror("echec de read");
+  }
+  printf("Message : %s\n", buf);
+  char debug_address[INET6_ADDRSTRLEN];
+  inet_ntop(AF_INET6, &diffadr.sin6_addr, debug_address, INET6_ADDRSTRLEN);
+  printf("Message reçu de %s\n", debug_address);
+  printf("Port : %d\n", ntohs(diffadr.sin6_port));
+  printf("Scope ID : %d\n", diffadr.sin6_scope_id);
 
   memset(buf, 0, sizeof(buf));
   if ((recu = recvfrom(udp_socket, buf, sizeof(buf) - 1, 0,
