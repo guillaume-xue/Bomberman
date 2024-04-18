@@ -83,6 +83,7 @@ void send_game_s_info(Partie *partie, int client_socket) {
     perror("L'envoi des informations de la partie a échoué");
     exit(EXIT_FAILURE);
   }
+
 }
 
 void init_multicast_socket(Partie *partie) {
@@ -143,15 +144,8 @@ GridData* init_grid_data(uint8_t longueur, uint8_t largeur) {
 void envoyer_grille(Partie *partie) {
     // Envoyer le buffer contenant la grille en multicast
     ssize_t bytes_sent;
-    struct sockaddr_in6 gradr;
-    memset(&gradr, 0, sizeof(gradr));
-    gradr.sin6_family = AF_INET6;
-    gradr.sin6_addr = partie->multicast_addr.sin6_addr;
-    gradr.sin6_port = htons(partie->multicast_addr.sin6_port);
-
-    gradr.sin6_scope_id = partie->multicast_addr.sin6_scope_id;
-
-    bytes_sent = sendto(partie->send_sock, (void *)grille, sizeof(GridData), 0, (struct sockaddr *)&gradr, sizeof(struct sockaddr_in6));
+    
+    bytes_sent = sendto(partie->send_sock, (void *)grille, sizeof(GridData), 0, (struct sockaddr *)&partie->multicast_addr, sizeof(struct sockaddr_in6));
     if (bytes_sent == -1) {
         perror("Erreur lors de l'envoi de la grille en multicast");
     }
@@ -165,15 +159,7 @@ void* signalement_debut_partie(void *arg) {
     snprintf(message, SIZE_MSG, "La partie a commencé !");
     ssize_t size;
 
-    struct sockaddr_in6 gradr;
-    memset(&gradr, 0, sizeof(gradr));
-    gradr.sin6_family = AF_INET6;
-    gradr.sin6_addr = partie->multicast_addr.sin6_addr;
-    gradr.sin6_port = htons(partie->multicast_addr.sin6_port);
-
-    gradr.sin6_scope_id = partie->multicast_addr.sin6_scope_id;
-
-    if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&gradr, sizeof(struct sockaddr_in6))) < 0){
+    if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&partie->multicast_addr, sizeof(struct sockaddr_in6))) < 0){
         perror("erreur send");
     }
 
