@@ -18,6 +18,7 @@
 #define TCP_PORT 8080
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
+#define INTERVALLE_ENVOI 1 
 
 typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, BOMB, QUIT } ACTION;
 enum colors { GREEN, YELLOW, MAGENTA, CYAN };
