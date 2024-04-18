@@ -1,7 +1,7 @@
 #include "client.h"
-#include "grid.h"
+#include "config.h"
 
-int player_id;
+int player_id; // id du joueur
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
@@ -168,21 +168,6 @@ void suscribe_multicast() {
   inet_pton(AF_INET6, multicast_addr, &udp_send_addr.sin6_addr);
 }
 
-void init_players_info(player **players) {
-  players = malloc(4 * sizeof(player *));
-  for (int i = 0; i < 4; i++) {
-    players[i] = malloc(sizeof(player));
-    players[i]->p = malloc(sizeof(pos));
-    players[i]->id = i + 1;
-    players[i]->b = malloc(sizeof(bomb) + 1);
-    players[i]->b->set = false;
-    players[i]->gmsg = malloc(sizeof(GameMessage));
-    players[i]->gmsg->ACTION = 5151;
-    players[i]->action = NONE;
-  }
-  players[player_id]->gmsg = malloc(sizeof(GameMessage));
-}
-
 void update_players_action(player **players) {
   if (players[received_message.ID]->id != player_id) {
     players[received_message.ID]->action = received_message.ACTION;
@@ -289,6 +274,6 @@ int main() {
 
   // Envoyer les messages en udp
   while(1){
-    
+
   }
 }

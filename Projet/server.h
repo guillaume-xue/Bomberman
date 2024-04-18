@@ -2,37 +2,11 @@
 #define SERVER_H
 
 #include "config.h"
-#include "client.h"
+
 #include "func.h"
 
 #define MAX_CLIENTS 4
 #define MAX_PARTIES 4
-
-typedef struct {
-  int nb_joueurs;
-  int partie_id;
-  int mode_jeu;
-
-  pthread_t thread_partie;  // thread pour gérer la partie, afin de pas bloquer le serveur
-
-  int send_sock;  // sock pour envoyer des messages multicast aux clients
-  struct sockaddr_in6 multicast_addr; // adresse multicast
-
-  struct sockaddr_in6 partie_addr;  // adresse de la partie
-
-  int clients_socket_tcp[MAX_CLIENTS];  // sockets des clients, pour communiquer avec eux
-  int clients_playing[MAX_CLIENTS];  // id des clients, afin de savoir qui est encore connecté dans la partie
-
-} Partie;
-
-typedef struct {
-  int code_req;
-  short id;
-  short eq;
-  uint16_t port_udp;
-  uint16_t port_m_diff;
-  char adr_m_diff[INET6_ADDRSTRLEN];
-} ServerMessage;
 
 // Définition des valeurs pour le contenu de chaque case de la grille.
 typedef enum {
@@ -49,9 +23,9 @@ typedef enum {
 
 typedef struct {
     uint8_t CODEREQ;
-    uint8_t ID;     
-    uint8_t EQ;     
-    uint16_t NUM;   
+    uint8_t ID;
+    uint8_t EQ;
+    uint16_t NUM;
 } EnteteMessage;
 
 typedef struct {
