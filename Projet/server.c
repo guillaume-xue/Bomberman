@@ -144,48 +144,7 @@ void signalement_debut_partie(Partie *partie) {
     perror("erreur send");
   }
   
-  // struct sockaddr_in6 gradr;
-  // memset(&gradr, 0, sizeof(gradr));
-  // gradr.sin6_family = AF_INET6;
-  // gradr.sin6_addr = partie->multicast_addr.sin6_addr;
-  // gradr.sin6_port = htons(partie->multicast_addr.sin6_port);
-
-  // int ifindex = if_nametoindex("en0");
-  // if (ifindex == 0)
-  //     perror("if_nametoindex");
-
-  // gradr.sin6_scope_id = ifindex;
-
-  // if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&gradr, sizeof(gradr))) < 0){
-  //   perror("erreur send");
-  // }
-  
   printf("send : %ld\n", size);
-
-  // struct sockaddr_in6 multicast_addr = partie->multicast_addr;
-  // socklen_t addr_size = sizeof(struct sockaddr_in6);
-  // ssize_t bytes_sent = sendto(partie->send_sock, message, strlen(message), 0,
-  //            (struct sockaddr *)&multicast_addr,
-  //            addr_size);
-  // if (bytes_sent < 0) {
-  //     perror("L'envoi du message de début de partie en multicast a échoué");
-  //     exit(EXIT_FAILURE);
-  // }
-  // if (bytes_sent == 0) {
-  //     printf("Send : %ld \n",bytes_sent);
-  // }
-  // else{
-  //     printf(" Val : %ld \n", bytes_sent);
-  // }
-
-  // printf("Les joueurs sont signalés!! \n");
-
-  // char adr_m_diff[INET6_ADDRSTRLEN];
-  // inet_ntop(AF_INET6, &(parties[0].multicast_addr.sin6_addr),adr_m_diff,
-  // INET6_ADDRSTRLEN);
-
-  // printf("multicast port : %d , partie_port : %d , multicast_addr : %s \n",
-  // partie->multicast_addr.sin6_port, partie->partie_addr.sin6_port,
 }
 
 void *handle_client(void *arg) {

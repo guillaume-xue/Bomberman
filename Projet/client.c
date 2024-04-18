@@ -176,64 +176,6 @@ void suscribe_multicast() {
     exit(EXIT_FAILURE);
   }
 
-  // Maintenant on se connecte en UDP à la partie
-  // udp_socket = socket(AF_INET6, SOCK_DGRAM, 0);
-  // if (udp_socket == -1) {
-  //   perror("La création de la socket UDP a échoué");
-  //   exit(EXIT_FAILURE);
-  // }
-  // // printf("Socket UDP créée avec succès.\n");
-
-  // int reuse = 1;
-  // if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse))
-  // <
-  //     0) {
-  //   perror("setsockopt(SO_REUSEADDR) failed");
-  //   exit(EXIT_FAILURE);
-  // }
-
-  // if (setsockopt(udp_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse))
-  // <
-  //     0) {
-  //   perror("setsockopt(SO_REUSEADDR) failed");
-  //   exit(EXIT_FAILURE);
-  // }
-
-  // udp_listen_addr.sin6_family = AF_INET6;
-  // udp_listen_addr.sin6_port = htons(multicast_port);
-  // udp_listen_addr.sin6_addr = in6addr_any;
-
-  // if (bind(udp_socket, (struct sockaddr *)&udp_listen_addr,
-  //          sizeof(udp_listen_addr)) < 0) {
-  //   perror("La liaison de la socket UDP a échoué");
-  //   exit(EXIT_FAILURE);
-  // }
-  // // printf("Socket UDP liée avec succès à l'adresse et au port
-  // multicast.\n");
-
-  // // Abonnement au groupe multicast
-  // int ifindex = if_nametoindex(
-  //     "en0"); // à check en fonction de la machine sur laquelle on lance,
-
-  // if (ifindex == 0) {
-  //   perror("if_nametoindex failed");
-  //   exit(EXIT_FAILURE);
-  // }
-
-  // struct ipv6_mreq group;
-  // group.ipv6mr_interface = ifindex;
-  // if (inet_pton(AF_INET6, multicast_addr, &group.ipv6mr_multiaddr.s6_addr) <
-  //     0) {
-  //   perror("Erreur de conversion de l'adresse multicast");
-  //   exit(EXIT_FAILURE);
-  // }
-
-  // if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, &group,
-  //                sizeof(group)) < 0) {
-  //   perror("L'abonnement au groupe multicast a échoué");
-  //   exit(EXIT_FAILURE);
-  // }
-
   udp_send_addr.sin6_family = AF_INET6;
   udp_send_addr.sin6_port = partie_port;
   inet_pton(AF_INET6, multicast_addr, &udp_send_addr.sin6_addr);
