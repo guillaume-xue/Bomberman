@@ -4,17 +4,17 @@
 #include <signal.h>
 #include "grid.h"
 
-int get_grid(board *b, int x, int y) {
-    return b->cases[(y * b->LARGEUR) + x];
+int get_grid(GridData *g, int x, int y) {
+    return g->cases[(y * g->largeur) + x];
 }
 
-void refresh_game(line *l, board *b) {
+void refresh_game(line *l, GridData *g) {
     // Update grid
     int x,y;
-    for (y = 0; y < b->HAUTEUR; y++) {
-        for (x = 0; x < b->LARGEUR; x++) {
+    for (y = 0; y < g->longueur; y++) {
+        for (x = 0; x < g->largeur; x++) {
             char c;
-            switch (get_grid(b, x, y)) {
+            switch (get_grid(g, x, y)) {
                 case 0:
                     c = ' '; // Empty
                     break;
@@ -49,22 +49,22 @@ void refresh_game(line *l, board *b) {
             mvaddch(y+1,x+1,c);
         }
     }
-    for (x = 0; x < b->LARGEUR + 2; x++) {
+    for (x = 0; x < g->largeur + 2; x++) {
         mvaddch(0, x, '-');
-        mvaddch(b->HAUTEUR + 1, x, '-');
+        mvaddch(g->longueur + 1, x, '-');
     }
-    for (y = 0; y < b->HAUTEUR + 2; y++) {
+    for (y = 0; y < g->longueur + 2; y++) {
         mvaddch(y, 0, '|');
-        mvaddch(y, b->LARGEUR + 1, '|');
+        mvaddch(y, g->largeur + 1, '|');
     }
     // Update chat text
     attron(COLOR_PAIR(1)); // Enable custom color 1
     attron(A_BOLD); // Enable bold
-    for (x = 0; x < b->LARGEUR + 2; x++) {
+    for (x = 0; x < g->largeur + 2; x++) {
         if (x >= TEXT_SIZE || x >= l->cursor)
-            mvaddch(b->HAUTEUR + 2, x, ' ');
+            mvaddch(g->longueur + 2, x, ' ');
         else
-            mvaddch(b->HAUTEUR + 2, x, l->data[x]);
+            mvaddch(g->longueur + 2, x, l->data[x]);
     }
     attroff(A_BOLD); // Disable bold
     attroff(COLOR_PAIR(1)); // Disable custom color 1
@@ -136,7 +136,7 @@ bool perform_action(player *p) {
     return false;
 }
 
-void print_grid(player *current_player, board *b) {
+void print_grid(player *current_player, GridData *g) {
 
     line* l = malloc(sizeof(line));
     if (l == NULL) {
@@ -159,7 +159,7 @@ void print_grid(player *current_player, board *b) {
     while (true) {
         current_player->action = control(l); // Update the action of the current player
         if (perform_action(current_player)) break;
-        refresh_game(l, b);
+        refresh_game(l, g);
         usleep(30 * 1000);
     }
 

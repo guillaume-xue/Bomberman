@@ -1,5 +1,4 @@
 #include "client.h"
-#include "config.h"
 
 int player_id; // id du joueur
 int team_number;

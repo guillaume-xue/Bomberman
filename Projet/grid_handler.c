@@ -1,21 +1,21 @@
 #include "grid_handler.h"
 
 player **global_players;
-board *global_b;
+GridData *global_g;
 int bombe;
 
 void setup_board() { // Initialize the board
     int lines = 22;
     int columns = 51;
-    global_b = malloc(sizeof(board));
-    if (global_b == NULL) {
+    global_g = malloc(sizeof(GridData));
+    if (global_g == NULL) {
         perror("Memory allocation error for 'b'");
         exit(EXIT_FAILURE);
     }
-    global_b->HAUTEUR = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
-    global_b->LARGEUR = columns - 2; // 2 columns reserved for border
-    global_b->cases = calloc((global_b->LARGEUR) * (global_b->HAUTEUR), sizeof(char));
-    if (global_b->cases == NULL) {
+    global_g->longueur = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
+    global_g->largeur = columns - 2; // 2 columns reserved for border
+    global_g->cases = calloc((global_g->largeur) * (global_g->longueur), sizeof(char));
+    if (global_g->cases == NULL) {
         perror("Memory allocation error for 'b->grid'");
         exit(EXIT_FAILURE);
     }
@@ -24,16 +24,16 @@ void setup_board() { // Initialize the board
 // Place les murs sur la grille
 void setup_wall() {
     // On met des murs incassables sur les cases impaires
-    for (int i = 1; i < global_b->LARGEUR; i+=2) {
-        for (int j = 1; j < global_b->HAUTEUR; j+=2) {
+    for (int i = 1; i < global_g->largeur; i+=2) {
+        for (int j = 1; j < global_g->longueur; j+=2) {
             set_grid(i, j, 1);
         }
     }
     // On met des murs cassables aléatoirement
     int i = 0;
     while (i < NB_WALLS) {
-        int x = rand() % global_b->LARGEUR;
-        int y = rand() % global_b->HAUTEUR;
+        int x = rand() % global_g->largeur;
+        int y = rand() % global_g->longueur;
         if (get_grid(x, y) == 0){
             set_grid(x, y, 2);
             i++;
@@ -44,9 +44,9 @@ void setup_wall() {
 // Place les joueurs sur la grille
 void setup_players_pos() {
     global_players[0]->p->x = 0; global_players[0]->p->y = 0;
-    global_players[1]->p->x = global_b->LARGEUR - 1; global_players[1]->p->y = 0;
-    global_players[2]->p->x = 0; global_players[2]->p->y = global_b->HAUTEUR - 1;
-    global_players[3]->p->x = global_b->LARGEUR - 1; global_players[3]->p->y = global_b->HAUTEUR - 1;
+    global_players[1]->p->x = global_g->largeur - 1; global_players[1]->p->y = 0;
+    global_players[2]->p->x = 0; global_players[2]->p->y = global_g->longueur - 1;
+    global_players[3]->p->x = global_g->largeur - 1; global_players[3]->p->y = global_g->longueur - 1;
 }
 
 // Initialise les joueurs
@@ -77,7 +77,7 @@ void explode_bomb(){
     for (int i = global_players[bombe]->b->x - 1; i <= global_players[bombe]->b->x + 1; i++) {
         for (int j = global_players[bombe]->b->y - 1; j <= global_players[bombe]->b->y + 1; j++) {
             // On casse les murs cassables
-            if (i >= 0 && i < global_b->LARGEUR && j >= 0 && j < global_b->HAUTEUR && is_wall_breakable(i, j)){
+            if (i >= 0 && i < global_g->largeur && j >= 0 && j < global_g->longueur && is_wall_breakable(i, j)){
                 clear_grid(i, j);
             }
         }
@@ -191,7 +191,7 @@ void update_action(GameMessage *gmsg){
 }
 
 bool is_movable(int x, int y) {
-    return x >= 0 && x < global_b->LARGEUR && y >= 0 && y < global_b->HAUTEUR && !is_wall(x, y) && !is_bomb(x, y);
+    return x >= 0 && x < global_g->largeur && y >= 0 && y < global_g->longueur && !is_wall(x, y) && !is_bomb(x, y);
 }
 
 bool is_bomb(int x, int y) {
@@ -209,11 +209,11 @@ bool is_wall(int x, int y) {
 }
 
 int get_grid(int x, int y) {
-    return global_b->cases[(y * global_b->LARGEUR) + x];
+    return global_g->cases[(y * global_g->largeur) + x];
 }
 
 void set_grid(int x, int y, int v) {
-    global_b->cases[y * global_b->LARGEUR + x] = v;
+    global_g->cases[y * global_g->largeur + x] = v;
 }
 
 void clear_grid(int x, int y) {
@@ -230,13 +230,13 @@ void free_player() {
 }
 
 void free_board() {
-    free(global_b->cases);
+    free(global_g->cases);
 }
 
 void free_all() {
     free_player();
     free_board();
-    free(global_b);
+    free(global_g);
 }
 
 int grid_creation(GameMessage *gmsg) {
