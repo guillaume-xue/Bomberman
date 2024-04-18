@@ -201,23 +201,35 @@ void im_ready() {
 void *receive_grid(void *arg) {
     int udp_socket = *(int *)arg;
 
-    char buf[SIZE_MSG];
-    memset(buf, 0, sizeof(buf));
+    GridData *grid;
 
     struct sockaddr_in6 diffadr;
     int recu;
     socklen_t difflen = sizeof(diffadr);
 
     while (1) {
-        memset(buf, 0, sizeof(buf));
-        if ((recu = recvfrom(udp_socket, buf, sizeof(buf) - 1, 0,
-                             (struct sockaddr *)&diffadr, &difflen)) < 0) {
-            perror("echec de recvfrom.");
+        // Allouer de la mémoire pour la structure GridData
+        grid = (GridData *)malloc(sizeof(GridData));
+        if (grid == NULL) {
+            perror("Erreur d'allocation mémoire pour GridData");
+            exit(EXIT_FAILURE);
         }
+
+        // Réception du GridData depuis le socket UDP
+        if ((recu = recvfrom(udp_socket, grid, sizeof(GridData), 0,
+                             (struct sockaddr *)&diffadr, &difflen)) < 0) {
+            perror("Erreur lors de la réception du GridData");
+            free(grid);
+            continue; // Passer à l'itération suivante de la boucle
+        }
+        printf("Réception du Grid : longueur %d , largeur %d \n", grid->longueur,grid->largeur);
+
+        free(grid);
+
+        // Attendre 10 secondes avant de recevoir le prochain GridData
         sleep(10);
-        // Traitement du grid reçu
-        printf("Grid reçu : %s\n", buf);
     }
+
     return NULL;
 }
 

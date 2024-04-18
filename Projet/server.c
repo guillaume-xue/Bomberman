@@ -116,7 +116,6 @@ void init_multicast_socket(Partie *partie) {
   printf("Multicast Address: %s Port: %d Scope ID: %d\n", multicast_group, ntohs(partie->multicast_addr.sin6_port), partie->multicast_addr.sin6_scope_id);
 }
 
-
 GridData* init_grid_data(uint8_t longueur, uint8_t largeur) {
     GridData* grid = (GridData*)malloc(sizeof(GridData));
     if (grid == NULL) {
@@ -142,27 +141,6 @@ GridData* init_grid_data(uint8_t longueur, uint8_t largeur) {
 
 
 void envoyer_grille(Partie *partie) {
-    // Taille totale de la grille à envoyer (entête + longueur + largeur + cases)
-    size_t taille_grille = sizeof(uint8_t) + sizeof(uint8_t) +
-                           grille->longueur * grille->largeur * sizeof(uint8_t);
-
-    uint8_t *buffer = (uint8_t *)malloc(taille_grille);
-    if (buffer == NULL) {
-        perror("Erreur d'allocation mémoire pour le buffer de la grille");
-        exit(EXIT_FAILURE);
-    }
-
-    memcpy(buffer, &(grille->longueur), sizeof(uint8_t));
-    buffer += sizeof(uint8_t);
-
-    memcpy(buffer, &(grille->largeur), sizeof(uint8_t));
-    buffer += sizeof(uint8_t);
-
-    memcpy(buffer, grille->cases, grille->longueur * grille->largeur * sizeof(uint8_t));
-
-    // Réinitialiser le pointeur du buffer
-    buffer -= taille_grille - sizeof(EnteteMessage);
-
     // Envoyer le buffer contenant la grille en multicast
     ssize_t bytes_sent;
     struct sockaddr_in6 gradr;
@@ -172,11 +150,12 @@ void envoyer_grille(Partie *partie) {
     gradr.sin6_port = htons(partie->multicast_addr.sin6_port);
 
     gradr.sin6_scope_id = partie->multicast_addr.sin6_scope_id;
-    bytes_sent = sendto(partie->send_sock, buffer, taille_grille, 0, (struct sockaddr *)&gradr, sizeof(struct sockaddr_in6));
+
+    bytes_sent = sendto(partie->send_sock, (void *)grille, sizeof(GridData), 0, (struct sockaddr *)&gradr, sizeof(struct sockaddr_in6));
     if (bytes_sent == -1) {
         perror("Erreur lors de l'envoi de la grille en multicast");
     }
-
+    printf("Update GRID \n");
  }
 
 void* signalement_debut_partie(void *arg) {
