@@ -1,4 +1,5 @@
 #include "client.h"
+#include "grid.h"
 
 int player_id; // id du joueur
 int team_number;
@@ -207,6 +208,12 @@ void first_grid() {
                &difflen) < 0) {
     perror("echec de read");
   }
+
+  player *me = malloc(sizeof(player));
+  memset(me, 0, sizeof(player));
+  me->id = player_id;
+
+  print_grid(me, &grid);
 
   pthread_t tid;
   if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
