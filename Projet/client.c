@@ -231,5 +231,5 @@ int main() {
 
   im_ready(); // dernière étape avant de commencer la partie
 
-  first_grid();
+  // first_grid();
 }

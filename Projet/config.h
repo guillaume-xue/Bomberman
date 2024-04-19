@@ -19,12 +19,10 @@
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
 #define INTERVALLE_ENVOI 1
-#define MAX_CLIENTS 4
-#define MAX_PARTIES 4
 #define TEXT_SIZE 255
 #define NB_WALLS 100
 #define MAX_CLIENTS 4
-#define MAX_PARTIES 4
+#define MAX_PARTIES 5
 
 typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, BOMB, QUIT } ACTION;
 enum colors { GREEN, YELLOW, MAGENTA, CYAN };
