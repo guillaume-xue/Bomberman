@@ -5,13 +5,15 @@ int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
 int game_mode;
-GameMessage received_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
-struct sockaddr_in6 udp_send_addr;   // adresse de la partie en UDP
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
+struct sockaddr_in6 diffuseur_addr;  // adresse de la partie en UDP
+socklen_t difflen = sizeof(diffuseur_addr);
+
 void receive_gmsg(int client_socket) {
+  GameMessage received_message;
   memset(&received_message, 0, sizeof(GameMessage));
   // Réception du message depuis le client
   if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
@@ -61,11 +63,11 @@ void choose_game_mode() {
 
   clear_term();
 
-  GameMessage request;
-  memset(&request, 0, sizeof(GameMessage));
+  EnteteMessage request;
+  memset(&request, 0, sizeof(EnteteMessage));
   request.CODEREQ = game_mode;
 
-  if (send(tcp_socket, &request, sizeof(GameMessage), 0) < 0) {
+  if (send(tcp_socket, &request, sizeof(EnteteMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
   }
@@ -78,11 +80,8 @@ void suscribe_multicast() {
   ServerMessage serv_message;
 
   memset(&serv_message, 0, sizeof(ServerMessage));
-  memset(&udp_send_addr, 0, sizeof(udp_send_addr));
-  memset(&udp_listen_addr, 0, sizeof(udp_listen_addr));
 
   int multicast_port;
-  int partie_port;
   char multicast_addr[INET6_ADDRSTRLEN];
 
   ssize_t received = recv(tcp_socket, &serv_message, sizeof(ServerMessage), 0);
@@ -101,12 +100,7 @@ void suscribe_multicast() {
 
     strcpy(multicast_addr, serv_message.adr_m_diff);
 
-    partie_port = serv_message.port_udp;
-
     color = id_to_color(player_id);
-
-    printf("multicast port : %d , multicast_addr : %s \n", multicast_port,multicast_addr);
-
   }
 
   if ((udp_socket = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
@@ -137,7 +131,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("eth0");
+  int ifindex = if_nametoindex("en0");
   if (ifindex == 0)
     perror("if_nametoindex");
 
@@ -150,26 +144,11 @@ void suscribe_multicast() {
   }
   group.ipv6mr_interface = ifindex;
 
-  char debug_address[INET6_ADDRSTRLEN];
-  inet_ntop(AF_INET6, &group.ipv6mr_multiaddr, debug_address, INET6_ADDRSTRLEN);
-  printf("Multicast Address: %s Port: %d Scope ID: %d\n", debug_address,
-         ntohs(multicast_port), udp_send_addr.sin6_scope_id);
-
   if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, &group,
                  sizeof group) < 0) {
     perror("echec de abonnement groupe");
     close(udp_socket);
     exit(EXIT_FAILURE);
-  }
-
-  udp_send_addr.sin6_family = AF_INET6;
-  udp_send_addr.sin6_port = partie_port;
-  inet_pton(AF_INET6, multicast_addr, &udp_send_addr.sin6_addr);
-}
-
-void update_players_action(player **players) {
-  if (players[received_message.ID]->id != player_id) {
-    players[received_message.ID]->action = received_message.ACTION;
   }
 }
 
@@ -185,77 +164,55 @@ void im_ready() {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
   }
-}
 
+  if (game_mode == 1) printf("Mode de jeu : SOLO.\nJe suis %sJoueur %d%s.\n", color, player_id, "\033[0m");
+  else printf("Mode de jeu : EQUIPE.\nJe suis %sJoueur %d%s dans l'équipe %d.\n", color, player_id, "\033[0m", team_number);
+}
 
 void *receive_grid(void *arg) {
-    int udp_socket = *(int *)arg;
+  int udp_socket = *(int *)arg;
 
-    GridData *grid;
+  GridData *grid; // on malloc ssi on l'utilise dans un thread! Mais on est déjà dans un thread nécessaire ?
 
-    struct sockaddr_in6 diffadr;
-    int recu;
-    socklen_t difflen = sizeof(diffadr);
-
-    while (1) {
-        // Allouer de la mémoire pour la structure GridData
-        grid = (GridData *)malloc(sizeof(GridData));
-        if (grid == NULL) {
-            perror("Erreur d'allocation mémoire pour GridData");
-            exit(EXIT_FAILURE);
-        }
-
-        // Réception du GridData depuis le socket UDP
-        if ((recu = recvfrom(udp_socket, grid, sizeof(GridData), 0,
-                             (struct sockaddr *)&diffadr, &difflen)) < 0) {
-            perror("Erreur lors de la réception du GridData");
-            free(grid);
-            continue; // Passer à l'itération suivante de la boucle
-        }
-        printf("Réception du Grid : longueur %d , largeur %d \n", grid->longueur,grid->largeur);
-
-        free(grid);
-
-        // Attendre 10 secondes avant de recevoir le prochain GridData
-        sleep(10);
+  while (1) {
+    // Allouer de la mémoire pour la structure GridData
+    grid = (GridData *)malloc(sizeof(GridData));
+    if (grid == NULL) {
+      perror("Erreur d'allocation mémoire pour GridData");
+      exit(EXIT_FAILURE);
     }
 
-    return NULL;
+    // Réception du GridData depuis le socket UDP
+    if (recv(udp_socket, grid, sizeof(GridData), 0) < 0) {
+      perror("Erreur lors de la réception du GridData");
+      free(grid);
+      continue; // Passer à l'itération suivante de la boucle
+    }
+    printf("Réception du Grid : longueur %d , largeur %d \n", grid->longueur,
+           grid->largeur);
+
+    free(grid);
+
+    // Attendre 10 secondes avant de recevoir le prochain GridData
+    sleep(10);
+  }
+
+  return NULL;
 }
 
-void wait_for_game_start() {
+void first_grid() {
+  GridData grid;
 
-  char buf[SIZE_MSG];
-  memset(buf, 0, sizeof(buf));
-
-  struct sockaddr_in6 diffadr;
-  int recu;
-  socklen_t difflen = sizeof(diffadr);
-
-  if (recvfrom(udp_socket, buf, sizeof(buf) - 1, 0,
-               (struct sockaddr *)&diffadr, &difflen) < 0) {
+  if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0, (struct sockaddr *)&diffuseur_addr,
+               &difflen) < 0) {
     perror("echec de read");
   }
-  printf("Message : %s\n", buf);
-  char debug_address[INET6_ADDRSTRLEN];
-  inet_ntop(AF_INET6, &diffadr.sin6_addr, debug_address, INET6_ADDRSTRLEN);
-  printf("Message reçu de %s\n", debug_address);
-  printf("Port : %d\n", ntohs(diffadr.sin6_port));
-  printf("Scope ID : %d\n", diffadr.sin6_scope_id);
 
-  memset(buf, 0, sizeof(buf));
-  if ((recu = recvfrom(udp_socket, buf, sizeof(buf) - 1, 0,
-                       (struct sockaddr *)&diffadr, &difflen)) < 0) {
-    perror("echec de recvfrom.");
+  pthread_t tid;
+  if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
+    perror("Erreur lors de la création du thread pour la réception du grid");
+    exit(EXIT_FAILURE);
   }
-
-  printf("Message : %s\n", buf);
-
-   pthread_t tid;
-    if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
-        perror("Erreur lors de la création du thread pour la réception du grid");
-        exit(EXIT_FAILURE);
-    }
 }
 
 int main() {
@@ -267,12 +224,5 @@ int main() {
 
   im_ready(); // dernière étape avant de commencer la partie
 
-  wait_for_game_start();
-
-  printf("La partie a commencé, à vous de jouer !\n");
-
-  // Envoyer les messages en udp
-  while(1){
-
-  }
+  first_grid();
 }

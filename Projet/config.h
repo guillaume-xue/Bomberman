@@ -95,22 +95,24 @@ typedef struct {
     uint8_t CODEREQ;
     uint8_t ID;
     uint8_t EQ;
-    uint16_t NUM;
 } EnteteMessage;
 
 // Structure pour un message de mise à jour de cases spécifiques
 typedef struct {
     EnteteMessage entete;
-    uint16_t NB;     // Nombre de cases mises à jour
-    uint8_t* updates; // Pointeur vers un tableau dynamique pour les mises à jour
+    u_int16_t NUM;    // Numéro du message modulo 2^16
+    uint16_t NB;      // Nombre de cases mises à jour
+    uint8_t **cases;  // Tableau de tableaux de uint8_t pour les cases de la grille
 } GridMaj;
+
 
 // Structure représentant la grille de jeu
 typedef struct {
-    //EnteteMessage entete;
+    EnteteMessage entete;
+    u_int16_t NUM;    // Numéro du message modulo 2^16
     uint8_t longueur;
     uint8_t largeur;
-    uint8_t* cases;  // Pointeur vers un tableau dynamique pour les cases de la grille
+    uint8_t** cases;  // Pointeur vers un tableau dynamique pour les cases de la grille
 } GridData;
 
 typedef struct line {
