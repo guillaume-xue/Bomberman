@@ -209,11 +209,11 @@ bool is_wall(int x, int y) {
 }
 
 int get_grid(int x, int y) {
-    return global_g->cases[(y * global_g->largeur) + x];
+    return global_g->cases[x][y];
 }
 
 void set_grid(int x, int y, int v) {
-    global_g->cases[y * global_g->largeur + x] = v;
+    global_g->cases[x][y] = v;
 }
 
 void clear_grid(int x, int y) {
