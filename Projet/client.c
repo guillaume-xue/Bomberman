@@ -10,7 +10,7 @@ int game_mode;
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
-struct sockaddr_in6 diffuseur_addr;  // adresse de la partie en UDP
+struct sockaddr_in6 diffuseur_addr; // adresse de la partie en UDP
 socklen_t difflen = sizeof(diffuseur_addr);
 
 void receive_gmsg(int client_socket) {
@@ -166,14 +166,19 @@ void im_ready() {
     exit(EXIT_FAILURE);
   }
 
-  if (game_mode == 1) printf("Mode de jeu : SOLO.\nJe suis %sJoueur %d%s.\n", color, player_id, "\033[0m");
-  else printf("Mode de jeu : EQUIPE.\nJe suis %sJoueur %d%s dans l'équipe %d.\n", color, player_id, "\033[0m", team_number);
+  if (game_mode == 1)
+    printf("Mode de jeu : SOLO.\nJe suis %sJoueur %d%s.\n", color, player_id,
+           "\033[0m");
+  else
+    printf("Mode de jeu : EQUIPE.\nJe suis %sJoueur %d%s dans l'équipe %d.\n",
+           color, player_id, "\033[0m", team_number);
 }
 
 void *receive_grid(void *arg) {
   int udp_socket = *(int *)arg;
 
-  GridData *grid; // on malloc ssi on l'utilise dans un thread! Mais on est déjà dans un thread nécessaire ?
+  GridData *grid; // on malloc ssi on l'utilise dans un thread! Mais on est déjà
+                  // dans un thread nécessaire ?
 
   while (1) {
     // Allouer de la mémoire pour la structure GridData
@@ -201,25 +206,92 @@ void *receive_grid(void *arg) {
   return NULL;
 }
 
+// A faire dans le switch, afin de savoir si on envoie en TCP ou en UDP
+void *receive_tchat(void *arg) {
+  char message[SIZE_MSG];
+  while (1) {
+    memset(message, 0, SIZE_MSG);
+    if (recv(tcp_socket, message, SIZE_MSG, 0) < 0) {
+      perror("La réception du message a échoué");
+      exit(EXIT_FAILURE);
+    }
+
+    printf("\033[1;32m%s\033[0m\n", message);
+  }
+}
+
+void *send_tchat(void *arg) {
+  char instruction[SIZE_MSG];
+  sprintf(instruction, "Veuillez choisir un mode : 1 or 2\n"
+                       "      1. Message à tout le monde.\n"
+                       "      2. Message à votre partenaire.\n\n"
+                       "Mon choix est : ");
+  printf("%s", instruction);
+
+  char buf[SIZE_MSG];
+  while (1) {
+    memset(buf, 0, SIZE_MSG);
+
+    scanf("%s", buf);
+
+    if (atoi(buf) == 1 || atoi(buf) == 2) {
+      int choice = atoi(buf);
+      char message[SIZE_MSG];
+      printf("Entrez votre message : ");
+      scanf("%s", message);
+
+      TchatMessage tchat_message;
+      memset(&tchat_message, 0, sizeof(TchatMessage));
+      tchat_message.entete.CODEREQ = htons(choice + 6);
+      tchat_message.entete.ID = htons(player_id);
+      tchat_message.entete.EQ = (game_mode == 2) ? team_number : -1;
+      tchat_message.LEN = strlen(message);
+      strcpy(tchat_message.DATA, message);
+
+      if (send(tcp_socket, &tchat_message, sizeof(TchatMessage), 0) < 0) {
+        perror("L'envoi du message a échoué");
+        exit(EXIT_FAILURE);
+      }
+    } else {
+      puts("\n\n\033[31mVeuillez choisir 1 (Message à tout le monde) ou 2 "
+           "(Message à partenaire)\033[0m\n");
+      printf("%s", instruction);
+    }
+  }
+}
+
+void send_recv_tchat() {
+  pthread_t thread_recv_tchat;
+  pthread_t thread_send_tchat;
+
+  if (pthread_create(&thread_recv_tchat, NULL, receive_tchat, NULL) != 0) {
+    perror("Erreur lors de la création du thread pour la réception du tchat");
+    exit(EXIT_FAILURE);
+  }
+
+  if (pthread_create(&thread_send_tchat, NULL, send_tchat, NULL) != 0) {
+    perror("Erreur lors de la création du thread pour l'envoi du tchat");
+    exit(EXIT_FAILURE);
+  }
+}
+
 void first_grid() {
   GridData grid;
 
-  if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0, (struct sockaddr *)&diffuseur_addr,
-               &difflen) < 0) {
+  if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0,
+               (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
     perror("echec de read");
   }
 
-  player *me = malloc(sizeof(player));
-  memset(me, 0, sizeof(player));
-  me->id = player_id;
+  send_recv_tchat();
 
-  print_grid(me, &grid);
+  // print_grid(me, &grid);
 
-  pthread_t tid;
-  if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
-    perror("Erreur lors de la création du thread pour la réception du grid");
-    exit(EXIT_FAILURE);
-  }
+  // pthread_t tid;
+  // if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
+  //   perror("Erreur lors de la création du thread pour la réception du grid");
+  //   exit(EXIT_FAILURE);
+  // }
 }
 
 int main() {

@@ -143,6 +143,56 @@ GridData init_grid_data(uint8_t longueur, uint8_t largeur) {
   return grid;
 }
 
+// Partie incomplete puisque il faut 4 threads pour les 4 joueurs
+void *handle_tchat(void *arg) {
+  int index_partie = *(int *)arg;
+
+  char buf[SIZE_MSG];
+  memset(buf, 0, sizeof(buf));
+
+  while (1) {
+    if (recv(parties[index_partie].clients_socket_tcp[0], buf, SIZE_MSG, 0) <
+        0) {
+      perror("La réception du message a échoué");
+      exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+      if (parties[index_partie].clients_socket_tcp[i] != -1) {
+        if (send(parties[index_partie].clients_socket_tcp[i], buf, SIZE_MSG, 0) <
+            0) {
+          perror("L'envoi du message a échoué");
+          exit(EXIT_FAILURE);
+        }
+      }
+    }
+  }
+}
+
+void *handle_partie(void *arg) {
+  int index_partie = *(int *)arg;
+
+  clear_term();
+  puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
+
+  GridData grid = init_grid_data(10, 10);
+
+  // Envoie de la grille initiale
+  if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData), 0, (struct sockaddr *)&parties[index_partie].multicast_addr, sizeof(parties[index_partie].multicast_addr)) < 0) {
+    perror("L'envoi de la grille a échoué");
+    exit(EXIT_FAILURE);
+  }
+
+  pthread_t thread_tchat_communication;
+  int *x = malloc(sizeof(int));
+  *x = index_partie;
+  pthread_create(&thread_tchat_communication, NULL, handle_tchat, x);
+
+
+  free(arg);
+  return NULL;
+}
+
 void *handle_client(void *arg) {
   int client_socket = *(int *)arg;
 
@@ -196,29 +246,34 @@ void *handle_client(void *arg) {
              : "\n");
 
   if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
-    pthread_mutex_unlock(&mutex_partie);
-    printf("\033[90mLa partie n.%d va commencer dans 3 secondes.\033[0m\n",
-           index_partie);
-    for (int i = 0; i < 3; i++) {
-      printf("\033[90m%d\033[0m \n", 3 - i);
-      sleep(1);
-    }
-    puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
-
-    GridData grid = init_grid_data(10, 10);
-
-    // Envoie de la grille initiale
-    if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData), 0,
-               (struct sockaddr *)&parties[index_partie].multicast_addr,
-               sizeof(parties[index_partie].multicast_addr)) < 0) {
-      perror("L'envoi de la grille a échoué");
-      exit(EXIT_FAILURE);
-    }
-
-    pthread_t thread_grid;
+    pthread_t thread_partie;
     int *x = malloc(sizeof(int));
-    *x = nb_partie;
-    pthread_create(&thread_grid, NULL, game_comm, x);
+    *x = index_partie;
+    pthread_create(&thread_partie, NULL, handle_partie, x);
+
+    // pthread_mutex_unlock(&mutex_partie);
+    // printf("\033[90mLa partie n.%d va commencer dans 3 secondes.\033[0m\n",
+    //        index_partie);
+    // for (int i = 0; i < 3; i++) {
+    //   printf("\033[90m%d\033[0m \n", 3 - i);
+    //   sleep(1);
+    // }
+    // puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
+
+    // GridData grid = init_grid_data(10, 10);
+
+    // // Envoie de la grille initiale
+    // if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData), 0,
+    //            (struct sockaddr *)&parties[index_partie].multicast_addr,
+    //            sizeof(parties[index_partie].multicast_addr)) < 0) {
+    //   perror("L'envoi de la grille a échoué");
+    //   exit(EXIT_FAILURE);
+    // }
+
+    // pthread_t thread_grid;
+    // int *x = malloc(sizeof(int));
+    // *x = nb_partie;
+    // pthread_create(&thread_grid, NULL, game_comm, x);
   } else {
     pthread_mutex_unlock(&mutex_partie);
   }

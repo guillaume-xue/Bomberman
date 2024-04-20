@@ -113,6 +113,13 @@ typedef struct {
     uint8_t** cases;  // Pointeur vers un tableau dynamique pour les cases de la grille
 } GridData;
 
+// Structure représentant TchatMessage
+typedef struct {
+    EnteteMessage entete;
+    uint8_t LEN;
+    char DATA[SIZE_MSG];
+} TchatMessage;
+
 typedef struct line {
     char data[TEXT_SIZE];
     int cursor;
