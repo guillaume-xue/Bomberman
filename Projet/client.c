@@ -189,7 +189,7 @@ void *receive_grid(void *arg) {
       free(grid);
       continue; // Passer à l'itération suivante de la boucle
     }
-    printf("Réception du Grid : longueur %d , largeur %d \n", grid->longueur,
+    printf("Réception du Grid : longueur %d , largeur %d \n", grid->hauteur,
            grid->largeur);
 
     free(grid);
@@ -197,6 +197,34 @@ void *receive_grid(void *arg) {
     // Attendre 10 secondes avant de recevoir le prochain GridData
     sleep(10);
   }
+
+  return NULL;
+}
+
+void *send_grid(void *arg) {
+  int udp_socket = *(int *)arg;
+
+  while (1) {
+    // Envoi du GridData au socket UDP
+    if (sendto(udp_socket, "Hello", 5, 0, (struct sockaddr *)&diffuseur_addr,
+               difflen) < 0) {
+      perror("Erreur lors de l'envoi du GridData");
+      continue; // Passer à l'itération suivante de la boucle
+    }
+
+    // Attendre 10 secondes avant d'envoyer le prochain GridData
+    sleep(10);
+  }
+
+  return NULL;
+}
+
+void *handle_game(void *arg) {
+  pthread_t thread_receive_grid;
+  pthread_create(&thread_receive_grid, NULL, receive_grid, &udp_socket);
+
+  pthread_t thread_send_grid;
+  pthread_create(&thread_send_grid, NULL, send_grid, &udp_socket);
 
   return NULL;
 }
@@ -213,14 +241,32 @@ void first_grid() {
   memset(me, 0, sizeof(player));
   me->id = player_id;
 
-  print_grid(me, &grid);
-
-  pthread_t tid;
-  if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
-    perror("Erreur lors de la création du thread pour la réception du grid");
-    exit(EXIT_FAILURE);
+  line* l = malloc(sizeof(line));
+  if (l == NULL) {
+      perror("Memory allocation error for 'l'");
+      exit(EXIT_FAILURE);
   }
+
+  print_grid(&grid, me, l);
+
+  pthread_t thread_handle_client;
+  pthread_create(&thread_handle_client, NULL, handle_game, NULL);
 }
+
+
+// |--------------------------|--tchat--|         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |--------------------------|---------|         
+
 
 int main() {
   connexion_to_tcp_server();

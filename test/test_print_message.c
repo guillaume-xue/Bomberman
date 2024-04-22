@@ -1,10 +1,10 @@
-#include "grid.h"
+#include "../Projet/grid_handler.h"
 
 int get_grid(GridData *g, int x, int y) {
     return g->cases[y * g->largeur + x];
 }
 
-void refresh_game(line *l, GridData *g) {
+void refresh_game(line *send, line *recv, GridData *g) {
     int x, y;
     for (y = 0; y < g->hauteur; y++) {
         for (x = 0; x < g->largeur; x++) {
@@ -35,18 +35,24 @@ void refresh_game(line *l, GridData *g) {
     // Update chat text
     attron(COLOR_PAIR(1)); // Enable custom color 1
     attron(A_BOLD); // Enable bold
-    for (x = 0; x < g->largeur+2; x++) {
-        if (x >= TEXT_SIZE || x >= l->cursor)
-            mvaddch(g->hauteur+2, x, ' ');
+    for (x = 1; x < g->largeur+1; x++) {
+        if (x >= TEXT_SIZE || x >= recv->cursor)
+            mvaddch(g->hauteur+2 + (recv->cursor / g->largeur), x, ' ');
         else
-            mvaddch(g->hauteur+2, x, l->data[x]);
+            mvaddch(g->hauteur+2 + (recv->cursor / g->largeur), x, recv->data[(x + (recv->cursor / g->largeur) * g->largeur) - 1]);
+    }
+    for (x = 1; x < g->largeur+1; x++) {
+        if (x >= TEXT_SIZE || x >= send->cursor)
+            mvaddch(g->hauteur+10 + (send->cursor / g->largeur), x, ' ');
+        else
+            mvaddch(g->hauteur+10 + (send->cursor / g->largeur), x, send->data[(x + (send->cursor / g->largeur) * g->largeur) - 1]);
     }
     attroff(A_BOLD); // Disable bold
     attroff(COLOR_PAIR(1)); // Disable custom color 1
     refresh(); // Apply the changes to the terminal
 }
 
-ACTION control(line* l) {
+ACTION control(line* send) {
     int c;
     int prev_c = ERR;
     while ((c = getch()) != ERR) {
@@ -63,20 +69,27 @@ ACTION control(line* l) {
         case KEY_RIGHT: a = RIGHT; break;
         case KEY_UP: a = UP; break;
         case KEY_DOWN: a = DOWN; break;
+        case '/':  break; // Envoie le message
         case 'b': a = BOMB; break;
         case '~': a = QUIT; break;
         case KEY_BACKSPACE:
-            if (l->cursor > 0) l->cursor--;
+            if (send->cursor > 0) send->cursor--;
             break;
         default:
-            if (prev_c >= ' ' && prev_c <= '~' && l->cursor < TEXT_SIZE)
-                l->data[(l->cursor)++] = prev_c;
+            if (prev_c >= ' ' && prev_c <= '~' && send->cursor < TEXT_SIZE)
+                send->data[(send->cursor)++] = prev_c;
             break;
     }
     return a;
 }
 
-void print_grid(GridData *g, player *p, line *l) {
+void update_receive_tchat(MessageChat * tchat, line * recv) {
+    for (int i = 0; i < tchat->LEN; i++) {
+        recv->data[recv->cursor++] = tchat->DATA[i];
+    }
+}
+
+int main(){
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
     initscr(); /* Start curses mode */
     raw(); /* Disable line buffering */
@@ -88,17 +101,36 @@ void print_grid(GridData *g, player *p, line *l) {
     start_color(); // Enable colors
     init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is yellow, background is black)
 
+    GridData *g = malloc(sizeof(GridData));
+    g->hauteur = 5;
+    g->largeur = 40;
+    g->cases = malloc(g->hauteur * g->largeur * sizeof(ContenuCase));
+
+    line *send = malloc(sizeof(line)); // Line for the message to send
+    if (send == NULL) {
+        perror("Memory allocation error for 'send'");
+        exit(EXIT_FAILURE);
+    }
+    send->cursor = 0;
+
+    line *recv = malloc(sizeof(line)); // Line for the received message
+    if (recv == NULL) {
+        perror("Memory allocation error for 'recv'");
+        exit(EXIT_FAILURE);
+    }
+    recv->cursor = 0;
+
+    MessageChat *tchat = malloc(sizeof(MessageChat)); // Line for the received message
+
     while (true){
-        ACTION a = control(l);
-        p->action = a;
-        // envoi de l'action
-        // envoi du tchat
-        // reception du tchat
-        // reception de la grille
-        refresh_game(l, g);
+        ACTION a = control(send);
+        if (a == QUIT) break;
+        update_receive_tchat(tchat, recv); // Simulate receiving a message
+        refresh_game(send, recv, g);
         usleep(30 * 1000);
     }
 
     curs_set(1); // Set the cursor to visible again
     endwin(); /* End curses mode */
+    return 0;
 }

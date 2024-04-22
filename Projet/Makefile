@@ -3,7 +3,7 @@ CFLAGS = -Wall
 LIBS = -lcurses -lpthread
 
 CLIENT_OBJS = client.o grid.o func.o  # Ajoute func.o si nécessaire
-SERVER_OBJS = server.o func.o         # Ajoute func.o si nécessaire
+SERVER_OBJS = server.o func.o grid_handler.o   # Ajoute func.o si nécessaire
 
 all: client server
 
