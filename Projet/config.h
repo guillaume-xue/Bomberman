@@ -136,6 +136,7 @@ typedef struct bomb {
 // Structure représentant un joueur
 typedef struct player {
     int id;
+    int team;
     pos *p;
     bomb *b;
     ACTION action;

@@ -208,11 +208,11 @@ int check_maj(GridData *grid_handler, Partie partie) {
 void *game_comm(void *arg) {
   int partie_id = *(int *)arg;
 
-  GameMessage grid_handler;
+  GameMessage gameMessage;
   while (1) {
 
-    memset(&grid_handler, 0, sizeof(GameMessage));
-    if (recv(parties[partie_id].send_sock, &grid_handler, sizeof(GameMessage),
+    memset(&gameMessage, 0, sizeof(GameMessage));
+    if (recv(parties[partie_id].send_sock, &gameMessage, sizeof(GameMessage),
              0) < 0) {
       perror("La réception de la grille a échoué");
       exit(EXIT_FAILURE);
@@ -225,9 +225,9 @@ void *game_comm(void *arg) {
 
     setup_grid(&grid, 10, 10, p);
 
-    start_game(&grid, p);
+    start_game(grid, p, gameMessage);
 
-    if (sendto(parties[partie_id].send_sock, &grid_handler, sizeof(GameMessage),
+    if (sendto(parties[partie_id].send_sock, &gameMessage, sizeof(GameMessage),
                0, (struct sockaddr *)&parties[partie_id].multicast_addr,
                sizeof(parties[partie_id].multicast_addr)) < 0) {
       perror("L'envoi de la grille a échoué");

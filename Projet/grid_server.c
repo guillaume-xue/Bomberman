@@ -170,9 +170,9 @@ bool perform_action_all(player * p, GridData * g){
 }
 
 // Met à jour l'action des joueurs
-void update_action(GameMessage *gmsg, player * p){
+void update_action(GameMessage gmsg, player * p){
     ACTION a = NONE;
-    switch (gmsg->ACTION) { // Update the action of the other players
+    switch (gmsg.ACTION) { // Update the action of the other players
         case 0:
             a = UP;
             break;
@@ -193,7 +193,7 @@ void update_action(GameMessage *gmsg, player * p){
         default:
             break;
     }
-    p[gmsg->ID].action = a; // Update the action of the other players
+    p[gmsg.ID].action = a; // Update the action of the other players
 }
 
 bool is_movable(GridData *g, int x, int y) {
@@ -244,11 +244,26 @@ void free_all(player * p, GridData * g) {
     free(g);
 }
 
-void start_game(GridData *g, player * p) {
-    GameMessage *gmsg = malloc(sizeof(GameMessage));
+void start_game(GridData grid, player * players, GameMessage gameMessage) {
+    // On initialise les variables
+    GridData g;
+    memset(&g, 0, sizeof(GridData));
+    g = grid;
+
+    player * p = malloc(4 * sizeof(player *));
+    if (p == NULL) {
+        perror("Memory allocation error for 'players'");
+        exit(EXIT_FAILURE);
+    }
+    p = players;
+
+    GameMessage gmsg;
+    memset(&gmsg, 0, sizeof(GameMessage));
+    gmsg = gameMessage;
+
     while (true){
         update_action(gmsg, p);
-        if (perform_action_all(p, g)) break;
+        if (perform_action_all(p, &g)) break;
     }
-    free_all(p, g);
+    free_all(p, &g);
 }

@@ -237,17 +237,19 @@ void first_grid() {
     perror("echec de read");
   }
 
-  player *me = malloc(sizeof(player));
-  memset(me, 0, sizeof(player));
-  me->id = player_id;
+  GameMessage me;
+  me.CODEREQ = game_mode + 2;
+  me.ID = player_id;
+  me.EQ = (game_mode == 2) ? team_number : -1;
 
   line* l = malloc(sizeof(line));
   if (l == NULL) {
       perror("Memory allocation error for 'l'");
       exit(EXIT_FAILURE);
   }
+  l->cursor = 0;
 
-  print_grid(&grid, me, l);
+  print_grid(grid, me, l);
 
   pthread_t thread_handle_client;
   pthread_create(&thread_handle_client, NULL, handle_game, NULL);
@@ -277,5 +279,5 @@ int main() {
 
   im_ready(); // dernière étape avant de commencer la partie
 
-  // first_grid();
+  first_grid();
 }

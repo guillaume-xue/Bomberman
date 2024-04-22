@@ -76,7 +76,7 @@ ACTION control(line* l) {
     return a;
 }
 
-void print_grid(GridData grid, player *players, line *tchat) {
+void print_grid(GridData grid, GameMessage gameMessage, line *tchat) {
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
     initscr(); /* Start curses mode */
     raw(); /* Disable line buffering */
@@ -92,13 +92,6 @@ void print_grid(GridData grid, player *players, line *tchat) {
     memset(&g, 0, sizeof(GridData) - 1);
     g = grid;
 
-    player *p = malloc(4 * sizeof(player *));
-    if (p == NULL) {
-        perror("Memory allocation error for 'p'");
-        exit(EXIT_FAILURE);
-    }
-    p = players;
-
     line *l = malloc(sizeof(line));
     if (l == NULL) {
         perror("Memory allocation error for 'l'");
@@ -106,14 +99,14 @@ void print_grid(GridData grid, player *players, line *tchat) {
     }
     l = tchat;
 
+    GameMessage gmsg;
+    memset(&gmsg, 0, sizeof(GameMessage));
+    gmsg = gameMessage;
 
     while (true){
         ACTION a = control(l);
-        p->action = a;
-        // envoi de l'action
-        // envoi du tchat
-        // reception du tchat
-        // reception de la grille
+        gmsg.ACTION = a;
+        if (a == QUIT) break;
         refresh_game(l, &g);
         usleep(30 * 1000);
     }

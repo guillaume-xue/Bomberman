@@ -5,8 +5,6 @@
 #include <string.h>
 #include "config.h"
 
-void refresh_game(line* l, GridData* g);
-void print_grid(GridData grid, player *players, line *line);
-ACTION control(line* l);
+void print_grid(GridData grid, GameMessage gameMessage, line *tchat);
 
 #endif 
