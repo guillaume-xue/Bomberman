@@ -24,17 +24,10 @@
 #define TEXT_SIZE 255
 #define NB_WALLS 100
 #define MAX_CLIENTS 4
-#define MAX_PARTIES 4
+#define TAILLE_MESSAGE_CHAT_MAX 256 // Taille maximale d'un message de chat
 
 typedef enum ACTION { NONE, UP, DOWN, LEFT, RIGHT, BOMB, QUIT } ACTION;
 enum colors { GREEN, YELLOW, MAGENTA, CYAN };
-
-// Structure représentant une demande d'intégration à une partie
-typedef struct {
-    int CODEREQ; // Code de requête (1 ou 2 pour intégrer une partie, 3 ou 4 pour annoncer que le joueur est prêt à jouer)
-    int ID; // Identifiant du joueur (0 à 3)
-    int EQ; // Numéro de l'équipe du joueur (0 ou 1)
-} RequeteIntegration;
 
 // WARNING : Faites attention au passage de 8191 à 0.
 typedef struct {
@@ -105,32 +98,43 @@ typedef struct {
     uint8_t **cases;  // Tableau de tableaux de uint8_t pour les cases de la grille
 } GridMaj;
 
-
 // Structure représentant la grille de jeu
 typedef struct {
     EnteteMessage entete;
     u_int16_t NUM;    // Numéro du message modulo 2^16
-    uint8_t longueur;
+    uint8_t hauteur;
     uint8_t largeur;
-    uint8_t** cases;  // Pointeur vers un tableau dynamique pour les cases de la grille
+    ContenuCase *cases;  // Pointeur vers un tableau dynamique pour les cases de la grille
 } GridData;
+
+// Structure représentant une ligne de texte
+typedef struct {
+    uint8_t CODEREQ; // Code de requête (7 ou 8)
+    uint8_t ID; // Identifiant du joueur auteur du message (0 à 3)
+    uint8_t EQ; // Numéro de l'équipe du joueur auteur du message (0 ou 1)
+    uint8_t LEN; // Longueur du message
+    char DATA[TAILLE_MESSAGE_CHAT_MAX]; // Texte du message
+} MessageChat;
 
 typedef struct line {
     char data[TEXT_SIZE];
     int cursor;
 } line;
 
+// Structure représentant une position
 typedef struct pos {
     int x;
     int y;
 } pos;
 
+// Structure représentant une bombe
 typedef struct bomb {
     int x;
     int y;
     bool set;
 } bomb;
 
+// Structure représentant un joueur
 typedef struct player {
     int id;
     pos *p;

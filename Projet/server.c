@@ -114,39 +114,40 @@ void free_all_grids(u_int8_t **cases) {
   }
   free(cases);
 }
-
+/*
 GridData init_grid_data(uint8_t longueur, uint8_t largeur) {
-  GridData grid;
+    GridData grid;
 
-  memset(&grid.entete, 0, sizeof(grid.entete));
-  grid.entete.CODEREQ = 11;
-  grid.NUM = 0; // Car premier message de la partie
+    memset(&grid.entete, 0, sizeof(grid.entete));
+    grid.entete.CODEREQ = 11;
+    grid.NUM = 0; // Car premier message de la partie
 
-  grid.cases = malloc(longueur * sizeof(uint8_t *));
-  if (grid.cases == NULL) {
-    fprintf(stderr,
-            "Échec d'allocation mémoire pour les lignes de la grille\n");
-    exit(EXIT_FAILURE);
-  }
-
-  for (int i = 0; i < longueur; i++) {
-    grid.cases[i] = malloc(largeur * sizeof(uint8_t));
-    if (grid.cases[i] == NULL) {
-      fprintf(stderr,
-              "Échec d'allocation mémoire pour une ligne de la grille\n");
-      free_all_grids(grid.cases);
-      exit(EXIT_FAILURE);
+    grid.cases = malloc(longueur * sizeof(uint8_t *));
+    if (grid.cases == NULL) {
+        fprintf(stderr,
+                "Échec d'allocation mémoire pour les lignes de la grille\n");
+        exit(EXIT_FAILURE);
     }
-    memset(grid.cases[i], CASE_VIDE, largeur * sizeof(uint8_t));
-  }
 
-  grid.cases[0][0] = JOUEUR0;                      // Coin supérieur gauche
-  grid.cases[0][largeur - 1] = JOUEUR1;            // Coin supérieur droit
-  grid.cases[longueur - 1][0] = JOUEUR2;           // Coin inférieur gauche
-  grid.cases[longueur - 1][largeur - 1] = JOUEUR3; // Coin inférieur droit
+    for (int i = 0; i < longueur; i++) {
+        grid.cases[i] = malloc(largeur * sizeof(uint8_t));
+        if (grid.cases[i] == NULL) {
+            fprintf(stderr,
+                    "Échec d'allocation mémoire pour une ligne de la grille\n");
+            free_all_grids(grid.cases);
+            exit(EXIT_FAILURE);
+        }
+        memset(grid.cases[i], CASE_VIDE, largeur * sizeof(uint8_t));
+    }
 
-  return grid;
+    grid.cases[0][0] = JOUEUR0;                      // Coin supérieur gauche
+    grid.cases[0][largeur - 1] = JOUEUR1;            // Coin supérieur droit
+    grid.cases[longueur - 1][0] = JOUEUR2;           // Coin inférieur gauche
+    grid.cases[longueur - 1][largeur - 1] = JOUEUR3; // Coin inférieur droit
+
+    return grid;
 }
+*/
 
 void *handle_client(void *arg) {
   int client_socket = *(int *)arg;
@@ -207,7 +208,20 @@ void *handle_client(void *arg) {
     }
     puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
 
-    GridData grid = init_grid_data(10, 10);
+    // Initialisation des joueurs
+    player ** p = malloc(4 * sizeof(player *));
+    if (p == NULL) {
+        perror("Memory allocation error for 'global_players'");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialisation de la grille
+    GridData *grid = malloc(sizeof(GridData));
+    if (!grid) {
+      perror("L'allocation de la mémoire a échoué");
+      exit(EXIT_FAILURE);
+    }
+    setup_grid(grid, 10, 10, p);
 
     // Envoie de la grille initiale
     if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData),

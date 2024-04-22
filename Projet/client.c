@@ -189,7 +189,7 @@ void *receive_grid(void *arg) {
       free(grid);
       continue; // Passer à l'itération suivante de la boucle
     }
-    printf("Réception du Grid : longueur %d , largeur %d \n", grid->longueur,
+    printf("Réception du Grid : longueur %d , largeur %d \n", grid->hauteur,
            grid->largeur);
 
     free(grid);
@@ -213,7 +213,13 @@ void first_grid() {
   memset(me, 0, sizeof(player));
   me->id = player_id;
 
-  print_grid(me, &grid);
+  line* l = malloc(sizeof(line));
+  if (l == NULL) {
+      perror("Memory allocation error for 'l'");
+      exit(EXIT_FAILURE);
+  }
+
+  print_grid(&grid, me, l);
 
   pthread_t tid;
   if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {

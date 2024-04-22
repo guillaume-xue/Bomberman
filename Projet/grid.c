@@ -1,17 +1,12 @@
-#include <ncurses.h>
-#include <signal.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 #include "grid.h"
 
 int get_grid(GridData *g, int x, int y) {
-    return g->cases[y][x];
+    return g->cases[y * g->largeur + x];
 }
 
 void refresh_game(line *l, GridData *g) {
     int x, y;
-    for (y = 0; y < g->longueur; y++) {
+    for (y = 0; y < g->hauteur; y++) {
         for (x = 0; x < g->largeur; x++) {
             char c;
             switch (get_grid(g, x, y)) {
@@ -29,22 +24,26 @@ void refresh_game(line *l, GridData *g) {
             mvaddch(y + 1, x + 1, c);
         }
     }
-    for (x = 0; x < g->largeur + 2; x++) {
+    for (x = 0; x < g->largeur+2; x++) {
         mvaddch(0, x, '-');
-        mvaddch(g->longueur + 1, x, '-');
+        mvaddch(g->hauteur+1, x, '-');
     }
-    for (y = 0; y < g->longueur + 2; y++) {
+    for (y = 0; y < g->hauteur+2; y++) {
         mvaddch(y, 0, '|');
-        mvaddch(y, g->largeur + 1, '|');
+        mvaddch(y, g->largeur+1, '|');
     }
-    attron(COLOR_PAIR(1));
-    attron(A_BOLD);
-    for (x = 0; x < g->largeur + 2; x++) {
-        mvaddch(g->longueur + 2, x, (x >= l->cursor) ? ' ' : l->data[x]);
+    // Update chat text
+    attron(COLOR_PAIR(1)); // Enable custom color 1
+    attron(A_BOLD); // Enable bold
+    for (x = 0; x < g->largeur+2; x++) {
+        if (x >= TEXT_SIZE || x >= l->cursor)
+            mvaddch(g->hauteur+2, x, ' ');
+        else
+            mvaddch(g->hauteur+2, x, l->data[x]);
     }
-    attroff(A_BOLD);
-    attroff(COLOR_PAIR(1));
-    refresh();
+    attroff(A_BOLD); // Disable bold
+    attroff(COLOR_PAIR(1)); // Disable custom color 1
+    refresh(); // Apply the changes to the terminal
 }
 
 ACTION control(line* l) {
@@ -77,50 +76,29 @@ ACTION control(line* l) {
     return a;
 }
 
-bool perform_action(player *p) {
-    int xd = 0, yd = 0;
-    switch (p->action) {
-        case LEFT: xd = -1; yd = 0; break;
-        case RIGHT: xd = 1; yd = 0; break;
-        case UP: xd = 0; yd = -1; break;
-        case DOWN: xd = 0; yd = 1; break;
-        case BOMB: p->b->set = true; break;
-        case QUIT: return true;
-        default: break;
-    }
-    p->p->x += xd;
-    p->p->y += yd;
-    p->b->x = p->p->x;
-    p->b->y = p->p->y;
-    return false;
-}
+void print_grid(GridData *g, player *p, line *l) {
+    // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
+    initscr(); /* Start curses mode */
+    raw(); /* Disable line buffering */
+    intrflush(stdscr, FALSE); /* No need to flush when intr key is pressed */
+    keypad(stdscr, TRUE); /* Required in order to get events from keyboard */
+    nodelay(stdscr, TRUE); /* Make getch non-blocking */
+    noecho(); /* Don't echo() while we do getch (we will manually print characters when relevant) */
+    curs_set(0); // Set the cursor to invisible
+    start_color(); // Enable colors
+    init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is yellow, background is black)
 
-void print_grid(player *current_player, GridData *g) {
-    line* l = malloc(sizeof(line));
-    if (!l) {
-        perror("Memory allocation error for 'l'");
-        exit(EXIT_FAILURE);
-    }
-    l->cursor = 0;
-
-    initscr();
-    raw();
-    intrflush(stdscr, FALSE);
-    keypad(stdscr, TRUE);
-    nodelay(stdscr, TRUE);
-    noecho();
-    curs_set(0);
-    start_color();
-    init_pair(1, COLOR_YELLOW, COLOR_BLACK);
-
-    while (true) {
-        current_player->action = control(l);
-        if (perform_action(current_player)) break;
+    while (true){
+        ACTION a = control(l);
+        p->action = a;
+        // envoi de l'action
+        // envoi du tchat
+        // reception du tchat
+        // reception de la grille
         refresh_game(l, g);
-        usleep(30 * 1000);  // Sleep for 30 milliseconds
+        usleep(30 * 1000);
     }
 
-    curs_set(1);
-    endwin();
-    free(l);
+    curs_set(1); // Set the cursor to visible again
+    endwin(); /* End curses mode */
 }
