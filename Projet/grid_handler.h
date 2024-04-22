@@ -18,6 +18,6 @@ bool is_wall_breakable(GridData *g, int x, int y);
 void set_grid(GridData *g, int x, int y, int v);
 int get_grid(GridData *g, int x, int y);
 void clear_grid(GridData *g, int x, int y);
-void start_game(int hauteur, int largeur);
+void start_game(GridData *g, player * p, MessageChat * tchat);
 
 #endif

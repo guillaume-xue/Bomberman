@@ -248,19 +248,8 @@ void free_all(player ** p, GridData * g) {
     free(g);
 }
 
-void start_game(int hauteur, int largeur) {
-    GridData *g = malloc(sizeof(GridData));
-    if (g == NULL) {
-        perror("Memory allocation error for 'g'");
-        exit(EXIT_FAILURE);
-    }
-    player **p = malloc(4 * sizeof(player *));
-    if (p == NULL) {
-        perror("Memory allocation error for 'p'");
-        exit(EXIT_FAILURE);
-    }
+void start_game(GridData *g, player * p, MessageChat * tchat) {
     GameMessage *gmsg = malloc(sizeof(GameMessage));
-    setup_grid(g, hauteur, largeur, p);
     while (true){
         update_action(gmsg, p);
         if (perform_action_all(p, g)) break;
