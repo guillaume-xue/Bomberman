@@ -292,7 +292,7 @@ void first_grid() {
   //   perror("Erreur lors de la création du thread pour la réception du grid");
   //   exit(EXIT_FAILURE);
   // }
-}
+ }
 
 int main() {
   connexion_to_tcp_server();
