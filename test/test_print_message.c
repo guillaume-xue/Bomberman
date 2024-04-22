@@ -1,4 +1,4 @@
-#include "../Projet/grid_handler.h"
+#include "../Projet/grid_server.h"
 
 int get_grid(GridData *g, int x, int y) {
     return g->cases[y * g->largeur + x];

@@ -2,7 +2,7 @@
 #define SERVER_H
 
 #include "config.h"
-#include "grid_handler.h"
+#include "grid_server.h"
 #include "func.h"
 
 void init_mutex();

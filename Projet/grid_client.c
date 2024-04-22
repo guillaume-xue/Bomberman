@@ -1,4 +1,4 @@
-#include "grid.h"
+#include "grid_client.h"
 
 int get_grid(GridData *g, int x, int y) {
     return g->cases[y * g->largeur + x];
@@ -76,7 +76,7 @@ ACTION control(line* l) {
     return a;
 }
 
-void print_grid(GridData *g, player *p, line *l) {
+void print_grid(GridData grid, player *players, line *tchat) {
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
     initscr(); /* Start curses mode */
     raw(); /* Disable line buffering */
@@ -88,6 +88,25 @@ void print_grid(GridData *g, player *p, line *l) {
     start_color(); // Enable colors
     init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is yellow, background is black)
 
+    GridData g;
+    memset(&g, 0, sizeof(GridData) - 1);
+    g = grid;
+
+    player *p = malloc(4 * sizeof(player *));
+    if (p == NULL) {
+        perror("Memory allocation error for 'p'");
+        exit(EXIT_FAILURE);
+    }
+    p = players;
+
+    line *l = malloc(sizeof(line));
+    if (l == NULL) {
+        perror("Memory allocation error for 'l'");
+        exit(EXIT_FAILURE);
+    }
+    l = tchat;
+
+
     while (true){
         ACTION a = control(l);
         p->action = a;
@@ -95,7 +114,7 @@ void print_grid(GridData *g, player *p, line *l) {
         // envoi du tchat
         // reception du tchat
         // reception de la grille
-        refresh_game(l, g);
+        refresh_game(l, &g);
         usleep(30 * 1000);
     }
 

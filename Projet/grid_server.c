@@ -1,4 +1,4 @@
-#include "grid_handler.h"
+#include "grid_server.h"
 
 struct explose_arg {
     player p;

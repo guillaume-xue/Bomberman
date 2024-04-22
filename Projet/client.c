@@ -1,5 +1,5 @@
 #include "client.h"
-#include "grid.h"
+#include "grid_client.h"
 
 int player_id; // id du joueur
 int team_number;
