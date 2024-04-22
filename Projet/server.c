@@ -108,47 +108,6 @@ void init_multicast_socket(Partie *partie) {
          partie->multicast_addr.sin6_scope_id);
 }
 
-void free_all_grids(u_int8_t **cases) {
-  for (int i = 0; i < 10; i++) {
-    free(cases[i]);
-  }
-  free(cases);
-}
-/*
-GridData init_grid_data(uint8_t longueur, uint8_t largeur) {
-    GridData grid;
-
-    memset(&grid.entete, 0, sizeof(grid.entete));
-    grid.entete.CODEREQ = 11;
-    grid.NUM = 0; // Car premier message de la partie
-
-    grid.cases = malloc(longueur * sizeof(uint8_t *));
-    if (grid.cases == NULL) {
-        fprintf(stderr,
-                "Échec d'allocation mémoire pour les lignes de la grille\n");
-        exit(EXIT_FAILURE);
-    }
-
-    for (int i = 0; i < longueur; i++) {
-        grid.cases[i] = malloc(largeur * sizeof(uint8_t));
-        if (grid.cases[i] == NULL) {
-            fprintf(stderr,
-                    "Échec d'allocation mémoire pour une ligne de la grille\n");
-            free_all_grids(grid.cases);
-            exit(EXIT_FAILURE);
-        }
-        memset(grid.cases[i], CASE_VIDE, largeur * sizeof(uint8_t));
-    }
-
-    grid.cases[0][0] = JOUEUR0;                      // Coin supérieur gauche
-    grid.cases[0][largeur - 1] = JOUEUR1;            // Coin supérieur droit
-    grid.cases[longueur - 1][0] = JOUEUR2;           // Coin inférieur gauche
-    grid.cases[longueur - 1][largeur - 1] = JOUEUR3; // Coin inférieur droit
-
-    return grid;
-}
-*/
-
 void *handle_client(void *arg) {
   int client_socket = *(int *)arg;
 
@@ -209,7 +168,7 @@ void *handle_client(void *arg) {
     puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
 
     // Initialisation des joueurs
-    player **p = malloc(4 * sizeof(player *));
+    player *p = malloc(4 * sizeof(player));
     if (p == NULL) {
       perror("Memory allocation error for 'global_players'");
       exit(EXIT_FAILURE);
@@ -266,8 +225,14 @@ void *game_comm(void *arg) {
       exit(EXIT_FAILURE);
     }
 
-    if (check_maj(&grid_handler, parties[partie_id]) == 1)
-      continue; // on vérifie si l'action du joueur est legit
+    GridData grid;
+    memset(&grid, 0, sizeof(GridData));
+
+    player *p = malloc(4 * sizeof(player *));
+
+    setup_grid(&grid, 10, 10, p);
+
+    start_game(&grid, p);
 
     if (sendto(parties[partie_id].send_sock, &grid_handler, sizeof(GameMessage),
                0, (struct sockaddr *)&parties[partie_id].multicast_addr,

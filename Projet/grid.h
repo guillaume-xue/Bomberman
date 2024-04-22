@@ -7,5 +7,6 @@
 
 void refresh_game(line* l, GridData* g);
 void print_grid(GridData *g, player *p, line *l);
+ACTION control(line* l);
 
 #endif 

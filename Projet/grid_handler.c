@@ -1,7 +1,7 @@
 #include "grid_handler.h"
 
 struct explose_arg {
-    player * p;
+    player p;
     GridData * g;
 } explose_arg;
 
@@ -26,14 +26,14 @@ void setup_wall(GridData *g) {
 }
 
 // Place les joueurs sur la grille
-void setup_players(player ** global_players, GridData * global_g) {
+void setup_players(player * global_players, GridData * global_g) {
     for (int i = 0; i < 4; ++i) {
-        set_grid(global_g, global_players[i]->p->x, global_players[i]->p->y, 5 + i);
+        set_grid(global_g, global_players[i].p->x, global_players[i].p->y, 5 + i);
     }
 }
 
 // Initialise la grille
-void setup_grid(GridData *g, int hauteur, int largeur, player ** p) {
+void setup_grid(GridData *g, int hauteur, int largeur, player * p) {
     g->entete.CODEREQ = 11;
     g->NUM = 0; // Car premier message de la partie
     g->hauteur = hauteur - 2 - 1; // 2 rows reserved for border, 1 row for chat
@@ -49,63 +49,60 @@ void setup_grid(GridData *g, int hauteur, int largeur, player ** p) {
 }
 
 // Initialise les joueurs
-void init_player(player ** global_players, GridData * global_g) {
+void init_player(player * global_players, GridData * global_g) {
+
     for (int i = 0; i < 4; i++) {
-        global_players[i] = malloc(sizeof(player));
-        if (global_players[i] == NULL) {
-            perror("Memory allocation error for 'players[i]'");
-            exit(EXIT_FAILURE);
-        }
-        global_players[i]->id = i + 1;
-        global_players[i]->p = malloc(sizeof(pos));
-        if (global_players[i]->p == NULL) {
+        global_players[i].id = i + 1;
+        global_players[i].p = malloc(sizeof(pos));
+        if (global_players[i].p == NULL) {
             perror("Memory allocation error for 'players[i]->p'");
             exit(EXIT_FAILURE);
         }
-        global_players[i]->b = malloc(sizeof(bomb));
-        if (global_players[i]->b == NULL) {
+        global_players[i].b = malloc(sizeof(bomb));
+        if (global_players[i].b == NULL) {
             perror("Memory allocation error for 'players[i]->b'");
             exit(EXIT_FAILURE);
         }
     }
-    global_players[0]->p->x = 0; global_players[0]->p->y = 0;
-    global_players[1]->p->x = global_g->largeur - 1; global_players[1]->p->y = 0;
-    global_players[2]->p->x = 0; global_players[2]->p->y = global_g->hauteur - 1;
-    global_players[3]->p->x = global_g->largeur - 1; global_players[3]->p->y = global_g->hauteur - 1;
+    global_players[0].p->x = 0; global_players[0].p->y = 0;
+    global_players[1].p->x = global_g->largeur - 1; global_players[1].p->y = 0;
+    global_players[2].p->x = 0; global_players[2].p->y = global_g->hauteur - 1;
+    global_players[3].p->x = global_g->largeur - 1; global_players[3].p->y = global_g->hauteur - 1;
 }
 
 // Fonction appelée par le thread pour faire exploser la bombe
 void explose_handler(void * arg) {
     sleep(3);
-    player * global_players = ((struct explose_arg *)arg)->p;
+    player global_players = ((struct explose_arg *)arg)->p;
     GridData * global_g = ((struct explose_arg *)arg)->g;
     explode_bomb(global_players, global_g);
 }
 
 // Fait exploser la bombe
-void explode_bomb(player * global_players, GridData * global_g){
-    for (int i = global_players->b->x - 1; i <= global_players->b->x + 1; i++) {
-        for (int j = global_players->b->y - 1; j <= global_players->b->y + 1; j++) {
+void explode_bomb(player global_players, GridData * global_g){
+    for (int i = global_players.b->x - 1; i <= global_players.b->x + 1; i++) {
+        for (int j = global_players.b->y - 1; j <= global_players.b->y + 1; j++) {
             // On casse les murs cassables
             if (i >= 0 && i < global_g->largeur && j >= 0 && j < global_g->hauteur && is_wall_breakable(global_g,i, j)){
                 clear_grid(global_g,i, j);
+
             }
         }
     }
     // On efface la bombe
-    clear_grid(global_g, global_players->b->x, global_players->b->y);
-    global_players->b->set = false;
+    clear_grid(global_g, global_players.b->x, global_players.b->y);
+    global_players.b->set = false;
 }
 
-bool perform_action(player * p, GridData * g) {
+bool perform_action(player p, GridData * g) {
     // Efface l'ancienne position du joueur
-    clear_grid(g, p->p->x, p->p->y);
+    clear_grid(g, p.p->x, p.p->y);
 
     int xd = 0;
     int yd = 0;
 
     // On met à jour l'action du joueur
-    switch (p->action) {
+    switch (p.action) {
         case LEFT:
             xd = -1; yd = 0; break;
         case RIGHT:
@@ -115,7 +112,7 @@ bool perform_action(player * p, GridData * g) {
         case DOWN:
             xd = 0; yd = 1; break;
         case BOMB:
-            p->b->set = true;
+            p.b->set = true;
             pthread_t thread;
             explose_arg = (struct explose_arg){p, g};
             // Créer un thread pour exécuter fonctionA
@@ -130,33 +127,33 @@ bool perform_action(player * p, GridData * g) {
     }
 
     // On met à jour la position de la bombe si elle est posée
-    if (p->b->set) {
-        set_grid(g, p->b->x, p->b->y, 3);
+    if (p.b->set) {
+        set_grid(g, p.b->x, p.b->y, 3);
     }else{
-        p->b->x = p->p->x;
-        p->b->y = p->p->y;
+        p.b->x = p.p->x;
+        p.b->y = p.p->y;
     }
 
     // On vérifie si le joueur peut bouger
-    if(is_movable(g, p->p->x + xd, p->p->y + yd)){
+    if(is_movable(g, p.p->x + xd, p.p->y + yd)){
 
         // On met à jour la position du joueur
-        p->p->x += xd;
-        p->p->y += yd;
+        p.p->x += xd;
+        p.p->y += yd;
 
         // On bouge
-        switch (p->id) {
+        switch (p.id) {
             case 1:
-                set_grid(g, p->p->x, p->p->y, 5);
+                set_grid(g, p.p->x, p.p->y, 5);
                 break;
             case 2:
-                set_grid(g, p->p->x, p->p->y, 6);
+                set_grid(g, p.p->x, p.p->y, 6);
                 break;
             case 3:
-                set_grid(g, p->p->x, p->p->y, 7);
+                set_grid(g, p.p->x, p.p->y, 7);
                 break;
             case 4:
-                set_grid(g, p->p->x, p->p->y, 8);
+                set_grid(g, p.p->x, p.p->y, 8);
                 break;
             default:
                 break;
@@ -165,7 +162,7 @@ bool perform_action(player * p, GridData * g) {
     return false;
 }
 
-bool perform_action_all(player ** p, GridData * g){
+bool perform_action_all(player * p, GridData * g){
     for (int i = 0; i < 4; i++) {
         if (perform_action(p[i],g)) return true;
     }
@@ -173,7 +170,7 @@ bool perform_action_all(player ** p, GridData * g){
 }
 
 // Met à jour l'action des joueurs
-void update_action(GameMessage *gmsg, player ** p){
+void update_action(GameMessage *gmsg, player * p){
     ACTION a = NONE;
     switch (gmsg->ACTION) { // Update the action of the other players
         case 0:
@@ -196,7 +193,7 @@ void update_action(GameMessage *gmsg, player ** p){
         default:
             break;
     }
-    p[gmsg->ID]->action = a; // Update the action of the other players
+    p[gmsg->ID].action = a; // Update the action of the other players
 }
 
 bool is_movable(GridData *g, int x, int y) {
@@ -229,11 +226,10 @@ void clear_grid(GridData *g, int x, int y) {
     set_grid(g, x, y, 0);
 }
 
-void free_player(player ** p) {
+void free_player(player * p) {
     for (int i = 0; i < 4; i++) {
-        free(p[i]->p);
-        free(p[i]->b);
-        free(p[i]);
+        free(p[i].p);
+        free(p[i].b);
     }
     free(p);
 }
@@ -242,13 +238,13 @@ void free_board(GridData * g) {
     free(g->cases);
 }
 
-void free_all(player ** p, GridData * g) {
+void free_all(player * p, GridData * g) {
     free_player(p);
     free_board(g);
     free(g);
 }
 
-void start_game(GridData *g, player * p, MessageChat * tchat) {
+void start_game(GridData *g, player * p) {
     GameMessage *gmsg = malloc(sizeof(GameMessage));
     while (true){
         update_action(gmsg, p);
