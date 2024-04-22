@@ -209,10 +209,10 @@ void *handle_client(void *arg) {
     puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
 
     // Initialisation des joueurs
-    player ** p = malloc(4 * sizeof(player *));
+    player **p = malloc(4 * sizeof(player *));
     if (p == NULL) {
-        perror("Memory allocation error for 'global_players'");
-        exit(EXIT_FAILURE);
+      perror("Memory allocation error for 'global_players'");
+      exit(EXIT_FAILURE);
     }
 
     // Initialisation de la grille
@@ -224,10 +224,9 @@ void *handle_client(void *arg) {
     setup_grid(grid, 10, 10, p);
 
     // Envoie de la grille initiale
-    if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData),
-                       0,
-                       (struct sockaddr *)&parties[index_partie].multicast_addr,
-                       sizeof(parties[index_partie].multicast_addr)) < 0) {
+    if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData), 0,
+               (struct sockaddr *)&parties[index_partie].multicast_addr,
+               sizeof(parties[index_partie].multicast_addr)) < 0) {
       perror("L'envoi de la grille a échoué");
       exit(EXIT_FAILURE);
     }
@@ -237,6 +236,14 @@ void *handle_client(void *arg) {
     *x = nb_partie;
     pthread_create(&thread_grid, NULL, game_comm, x);
   }
+
+  int *x = malloc(sizeof(int));
+  if (!x) {
+    perror("L'allocation de la mémoire a échoué");
+    exit(EXIT_FAILURE);
+  }
+  *x = index_partie;
+  pthread_exit(x);
 
   return NULL;
 }
@@ -249,12 +256,12 @@ int check_maj(GridData *grid_handler, Partie partie) {
 void *game_comm(void *arg) {
   int partie_id = *(int *)arg;
 
-  GridData grid_handler;
+  GameMessage grid_handler;
   while (1) {
 
-    memset(&grid_handler, 0, sizeof(GridData));
-    if (recv(parties[partie_id].send_sock, &grid_handler, sizeof(GridData), 0) <
-        0) {
+    memset(&grid_handler, 0, sizeof(GameMessage));
+    if (recv(parties[partie_id].send_sock, &grid_handler, sizeof(GameMessage),
+             0) < 0) {
       perror("La réception de la grille a échoué");
       exit(EXIT_FAILURE);
     }
@@ -262,8 +269,8 @@ void *game_comm(void *arg) {
     if (check_maj(&grid_handler, parties[partie_id]) == 1)
       continue; // on vérifie si l'action du joueur est legit
 
-    if (sendto(parties[partie_id].send_sock, &grid_handler, sizeof(GridData), 0,
-               (struct sockaddr *)&parties[partie_id].multicast_addr,
+    if (sendto(parties[partie_id].send_sock, &grid_handler, sizeof(GameMessage),
+               0, (struct sockaddr *)&parties[partie_id].multicast_addr,
                sizeof(parties[partie_id].multicast_addr)) < 0) {
       perror("L'envoi de la grille a échoué");
       exit(EXIT_FAILURE);
@@ -286,8 +293,15 @@ void *handle_partie(void *arg) {
 
   *x = client_socket;
   pthread_t thread_client;
+
+  void *ret = NULL;
+
   pthread_create(&thread_client, NULL, handle_client, x);
-  pthread_join(thread_client, NULL);
+  pthread_join(thread_client, &ret);
+
+  // if (*(int) ret == -1) {
+  //   printf("Le client a quitté la partie\n");
+  // }
 
   return NULL;
 }

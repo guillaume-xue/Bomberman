@@ -201,6 +201,34 @@ void *receive_grid(void *arg) {
   return NULL;
 }
 
+void *send_grid(void *arg) {
+  int udp_socket = *(int *)arg;
+
+  while (1) {
+    // Envoi du GridData au socket UDP
+    if (sendto(udp_socket, "Hello", 5, 0, (struct sockaddr *)&diffuseur_addr,
+               difflen) < 0) {
+      perror("Erreur lors de l'envoi du GridData");
+      continue; // Passer à l'itération suivante de la boucle
+    }
+
+    // Attendre 10 secondes avant d'envoyer le prochain GridData
+    sleep(10);
+  }
+
+  return NULL;
+}
+
+void *handle_game(void *arg) {
+  pthread_t thread_receive_grid;
+  pthread_create(&thread_receive_grid, NULL, receive_grid, &udp_socket);
+
+  pthread_t thread_send_grid;
+  pthread_create(&thread_send_grid, NULL, send_grid, &udp_socket);
+
+  return NULL;
+}
+
 void first_grid() {
   GridData grid;
 
@@ -221,12 +249,24 @@ void first_grid() {
 
   print_grid(&grid, me, l);
 
-  pthread_t tid;
-  if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
-    perror("Erreur lors de la création du thread pour la réception du grid");
-    exit(EXIT_FAILURE);
-  }
+  pthread_t thread_handle_client;
+  pthread_create(&thread_handle_client, NULL, handle_game, NULL);
 }
+
+
+// |--------------------------|--tchat--|         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |                          |         |         
+// |--------------------------|---------|         
+
 
 int main() {
   connexion_to_tcp_server();
