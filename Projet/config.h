@@ -15,7 +15,7 @@
 #include <net/if.h>
 
 
-#define TCP_PORT 8080
+#define TCP_PORT 8081
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
 #define INTERVALLE_ENVOI 1

@@ -1,7 +1,6 @@
 #include "client.h"
-#include "grid_client.h"
+#include "grid.h"
 
-int player_id; // id du joueur
 int player_id; // id du joueur
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
@@ -69,11 +68,8 @@ void choose_game_mode() {
 
   EnteteMessage request;
   memset(&request, 0, sizeof(EnteteMessage));
-  EnteteMessage request;
-  memset(&request, 0, sizeof(EnteteMessage));
   request.CODEREQ = game_mode;
 
-  if (send(tcp_socket, &request, sizeof(EnteteMessage), 0) < 0) {
   if (send(tcp_socket, &request, sizeof(EnteteMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
@@ -138,7 +134,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("eth0");
   if (ifindex == 0)
     perror("if_nametoindex");
 

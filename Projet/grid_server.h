@@ -5,7 +5,6 @@
 #include <signal.h>
 #include "config.h"
 
-
 void setup_grid(GridData *g, int hauteur, int largeur, player * p);
 void setup_wall(GridData *g);
 void init_player(player * global_players, GridData * g);

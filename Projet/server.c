@@ -34,8 +34,6 @@ int join_or_create(int client_socket, int mode_jeu) {
     if (parties[i].mode_jeu != -1) {
       if (parties[i].mode_jeu == mode_jeu &&
           parties[i].nb_joueurs < MAX_CLIENTS) {
-      if (parties[i].mode_jeu == mode_jeu &&
-          parties[i].nb_joueurs < MAX_CLIENTS) {
         add_player(&parties[i], client_socket);
         pthread_mutex_unlock(&mutex_partie);
         return i;
@@ -77,7 +75,6 @@ void send_game_s_info(Partie *partie, int client_socket) {
 
 void init_multicast_socket(Partie *partie) {
   // Création de la socket
-  // Création de la socket
   partie->send_sock = socket(AF_INET6, SOCK_DGRAM, 0);
   if (partie->send_sock < 0) {
     perror("socket for sending failed");
@@ -87,12 +84,7 @@ void init_multicast_socket(Partie *partie) {
   /* Initialisation de l'adresse d'abonnement */
   memset(&partie->multicast_addr, 0, sizeof(partie->multicast_addr));
 
-
   char multicast_group[INET6_ADDRSTRLEN];
-  snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x",
-           partie->partie_id + 1);
-
-  /* Initialisation de l'adresse d'abonnement */
   snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x",
            partie->partie_id + 1);
 
@@ -215,7 +207,7 @@ void *handle_partie(void *arg) {
 }
 
 void *handle_client(void *arg) {
-    int client_socket = *(int *)arg;
+  int client_socket = *(int *)arg;
 
   EnteteMessage received_message;
   memset(&received_message, 0, sizeof(EnteteMessage));
@@ -226,33 +218,35 @@ void *handle_client(void *arg) {
     exit(EXIT_FAILURE);
   }
 
-    int index_partie = join_or_create(
-    client_socket, received_message.CODEREQ); // index_partie est l'index de la partie où le client a rejoint
+  int index_partie = join_or_create(
+      client_socket,
+      received_message.CODEREQ); // index_partie est l'index de la partie où le
+                                 // client a rejoint
 
-    GameMessage client_ready;
-    memset(&client_ready, 0, sizeof(GameMessage));
+  GameMessage client_ready;
+  memset(&client_ready, 0, sizeof(GameMessage));
 
-    if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
-        perror("La réception du message a échoué");
-        exit(EXIT_FAILURE);
-    }
+  if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
+    perror("La réception du message a échoué");
+    exit(EXIT_FAILURE);
+  }
 
-    char buf[SIZE_MSG];
-    memset(buf, 0, sizeof(buf));
+  char buf[SIZE_MSG];
+  memset(buf, 0, sizeof(buf));
 
-    if (client_ready.EQ == -1) {
-        snprintf(buf, SIZE_MSG,
-        "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
-        "en mode : SOLO (1v3).",
-        id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
-        index_partie);
-    } else {
-        snprintf(buf, SIZE_MSG,
-        "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
-        "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
-        id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
-        client_ready.EQ, index_partie);
-    }
+  if (client_ready.EQ == -1) {
+    snprintf(buf, SIZE_MSG,
+             "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
+             "en mode : SOLO (1v3).",
+             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+             index_partie);
+  } else {
+    snprintf(buf, SIZE_MSG,
+             "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
+             "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
+             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+             client_ready.EQ, index_partie);
+  }
 
   printf("%s\n", buf);
 
@@ -379,7 +373,6 @@ int main() {
 
       *x = client_socket_tcp;
       pthread_t thread_client;
-      pthread_create(&thread_client, NULL, handle_client, x);
       pthread_create(&thread_client, NULL, handle_client, x);
     }
   }
