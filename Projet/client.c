@@ -13,16 +13,6 @@ struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 struct sockaddr_in6 diffuseur_addr;  // adresse de la partie en UDP
 socklen_t difflen = sizeof(diffuseur_addr);
 
-void receive_gmsg(int client_socket) {
-  GameMessage received_message;
-  memset(&received_message, 0, sizeof(GameMessage));
-  // Réception du message depuis le client
-  if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
-    perror("La réception du message a échoué");
-    exit(EXIT_FAILURE);
-  }
-}
-
 void connexion_to_tcp_server() {
   tcp_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (tcp_socket == -1) {
@@ -231,23 +221,23 @@ void *handle_game(void *arg) {
 
 void first_grid() {
   GridData grid;
+  memset(&grid, 0, sizeof(GridData) - 1);
 
-  if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0, (struct sockaddr *)&diffuseur_addr,
-               &difflen) < 0) {
-    perror("echec de read");
+  if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0, (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
+        perror("echec de read");
   }
 
+  printf("Réception du Grid : longueur %d , largeur %d \n", grid.hauteur, grid.largeur);
+
   GameMessage me;
+  memset(&me, 0, sizeof(GameMessage));
   me.CODEREQ = game_mode + 2;
   me.ID = player_id;
   me.EQ = (game_mode == 2) ? team_number : -1;
 
-  line* l = malloc(sizeof(line));
-  if (l == NULL) {
-      perror("Memory allocation error for 'l'");
-      exit(EXIT_FAILURE);
-  }
-  l->cursor = 0;
+  line l;
+  memset(&l, 0, sizeof(line) - 1);
+  l.cursor = 0;
 
   print_grid(grid, me, l);
 

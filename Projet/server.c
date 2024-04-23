@@ -165,28 +165,27 @@ void *handle_client(void *arg) {
     }
     puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
 
-    // Initialisation des joueurs
-    player *p = malloc(4 * sizeof(player));
-    if (p == NULL) {
-      perror("Memory allocation error for 'global_players'");
-      exit(EXIT_FAILURE);
-    }
+      // Initialisation de la grille
+      GridData g;
+      memset(&g, 0, sizeof(GridData) - 1);
 
-    // Initialisation de la grille
-    GridData *grid = malloc(sizeof(GridData));
-    if (!grid) {
-      perror("L'allocation de la mémoire a échoué");
-      exit(EXIT_FAILURE);
-    }
-    setup_grid(grid, 10, 10, p);
+      // Initialisation des joueurs
+      player *p = malloc(4 * sizeof(player *));
+      if (p == NULL) {
+          perror("Memory allocation error for 'p'");
+          exit(EXIT_FAILURE);
+      }
+      setup_grid(&g, 20, 51, p);
 
     // Envoie de la grille initiale
-    if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData), 0,
+    if (sendto(parties[index_partie].send_sock, &g, sizeof(GridData), 0,
                (struct sockaddr *)&parties[index_partie].multicast_addr,
                sizeof(parties[index_partie].multicast_addr)) < 0) {
       perror("L'envoi de la grille a échoué");
       exit(EXIT_FAILURE);
     }
+
+    printf("La grille a été envoyée\n");
 
     pthread_t thread_grid;
     int *x = malloc(sizeof(int));

@@ -76,7 +76,7 @@ ACTION control(line* l) {
     return a;
 }
 
-void print_grid(GridData grid, GameMessage gameMessage, line *tchat) {
+void print_grid(GridData grid, GameMessage gameMessage, line tchat) {
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
     initscr(); /* Start curses mode */
     raw(); /* Disable line buffering */
@@ -92,11 +92,8 @@ void print_grid(GridData grid, GameMessage gameMessage, line *tchat) {
     memset(&g, 0, sizeof(GridData) - 1);
     g = grid;
 
-    line *l = malloc(sizeof(line));
-    if (l == NULL) {
-        perror("Memory allocation error for 'l'");
-        exit(EXIT_FAILURE);
-    }
+    line l;
+    memset(&l, 0, sizeof(line) - 1);
     l = tchat;
 
     GameMessage gmsg;
@@ -104,10 +101,10 @@ void print_grid(GridData grid, GameMessage gameMessage, line *tchat) {
     gmsg = gameMessage;
 
     while (true){
-        ACTION a = control(l);
+        ACTION a = control(&l);
         gmsg.ACTION = a;
         if (a == QUIT) break;
-        refresh_game(l, &g);
+        refresh_game(&l, &g);
         usleep(30 * 1000);
     }
 

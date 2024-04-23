@@ -271,7 +271,7 @@ void setup_grid(GridData *g, int hauteur, int largeur, player * p) {
     setup_wall(g);
 }
 
-void print_grid(GridData grid, player * players, line * tchat) {
+void print_grid(GridData grid, player * players, GameMessage gameMessage, line tchat) {
     // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
     initscr(); /* Start curses mode */
     raw(); /* Disable line buffering */
@@ -286,6 +286,11 @@ void print_grid(GridData grid, player * players, line * tchat) {
     GridData g;
     memset(&g, 0, sizeof(GridData) - 1);
     g = grid;
+
+    GameMessage gmsg;
+    memset(&gmsg, 0, sizeof(GameMessage));
+    gmsg = gameMessage;
+
     player *p = malloc(4 * sizeof(player *));
     if (p == NULL) {
         perror("Memory allocation error for 'p'");
@@ -294,22 +299,20 @@ void print_grid(GridData grid, player * players, line * tchat) {
     p = players;
     setup_grid(&g, 20, 51, p);
 
-    line *l = malloc(sizeof(line));
-    if (l == NULL) {
-        perror("Memory allocation error for 'l'");
-        exit(EXIT_FAILURE);
-    }
+    line l;
+    memset(&l, 0, sizeof(line) - 1);
     l = tchat;
 
     while (true){
-        ACTION a = control(l);
-        p[0].action = a;
+        ACTION a = control(&l);
+        gmsg.ACTION = a;
+        p[gmsg.ID].action = gmsg.ACTION;
         // envoi de l'action
         // envoi du tchat
         if(perform_action_all(p, &g)) break;
         // reception du tchat
         // reception de la grille
-        refresh_game(l, &g);
+        refresh_game(&l, &g);
         usleep(30 * 1000);
     }
 
@@ -327,14 +330,19 @@ int main(){
         perror("Memory allocation error for 'p'");
         exit(EXIT_FAILURE);
     }
-    setup_grid(&g, 20, 51, p);
-    line *l = malloc(sizeof(line));
-    if (l == NULL) {
-        perror("Memory allocation error for 'l'");
-        exit(EXIT_FAILURE);
-    }
-    l->cursor = 0;
 
-    print_grid(g, p, l);
+    setup_grid(&g, 20, 51, p);
+
+    line l;
+    memset(&l, 0, sizeof(line) - 1);
+    l.cursor = 0;
+
+    GameMessage me;
+    memset(&me, 0, sizeof(GameMessage));
+    me.CODEREQ = 2;
+    me.ID = 1;
+    me.EQ = 1;
+
+    print_grid(g, p,me, l);
     return 0;
 }

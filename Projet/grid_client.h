@@ -5,6 +5,6 @@
 #include <string.h>
 #include "config.h"
 
-void print_grid(GridData grid, GameMessage gameMessage, line *tchat);
+void print_grid(GridData grid, GameMessage gameMessage, line tchat);
 
 #endif 
