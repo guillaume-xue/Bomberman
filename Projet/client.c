@@ -7,6 +7,8 @@ int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
 int game_mode;
 
+GridData game_grid;
+
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
@@ -171,40 +173,22 @@ void im_ready() {
            "\033[0m");
   else
     printf("Mode de jeu : EQUIPE.\nJe suis %sJoueur %d%s dans l'équipe %d.\n",
-           color, player_id, "\033[0m", team_number);
+           color, player_id, "\033[0m", team_number); 
 }
 
-void *receive_grid(void *arg) {
-  int udp_socket = *(int *)arg;
-
-  GridData *grid; // on malloc ssi on l'utilise dans un thread! Mais on est déjà
-                  // dans un thread nécessaire ?
-
+void grid_communication() {
+  GridData grid;
   while (1) {
-    // Allouer de la mémoire pour la structure GridData
-    grid = (GridData *)malloc(sizeof(GridData));
-    if (grid == NULL) {
-      perror("Erreur d'allocation mémoire pour GridData");
-      exit(EXIT_FAILURE);
+    memset(&grid, 0, sizeof(GridData));
+    if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0,
+                 (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
+      perror("echec de read");
     }
 
-    // Réception du GridData depuis le socket UDP
-    if (recv(udp_socket, grid, sizeof(GridData), 0) < 0) {
-      perror("Erreur lors de la réception du GridData");
-      free(grid);
-      continue; // Passer à l'itération suivante de la boucle
-    }
-    printf("Réception du Grid : longueur %d , largeur %d \n", grid->longueur,
-           grid->largeur);
-
-    free(grid);
-
-    // Attendre 10 secondes avant de recevoir le prochain GridData
-    sleep(10);
+    // print_grid(me, &grid);
   }
-
-  return NULL;
 }
+ 
 
 // A faire dans le switch, afin de savoir si on envoie en TCP ou en UDP
 void *receive_tchat(void *arg) {
@@ -275,23 +259,18 @@ void send_recv_tchat() {
   }
 }
 
-void first_grid() {
-  GridData grid;
+void launch_game() {
+  GridData first_grid;
+  memset(&first_grid, 0, sizeof(GridData));
 
-  if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0,
-               (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
-    perror("echec de read");
+  if (recv(udp_socket, &first_grid, sizeof(GridData), 0) < 0) {
+    perror("La réception de la première grille a échoué");
+    exit(EXIT_FAILURE);
   }
 
-  send_recv_tchat();
+  init_grid(first_grid, player_id);
 
-  // print_grid(me, &grid);
-
-  // pthread_t tid;
-  // if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
-  //   perror("Erreur lors de la création du thread pour la réception du grid");
-  //   exit(EXIT_FAILURE);
-  // }
+  // grid_communication();
  }
 
 int main() {
@@ -303,5 +282,5 @@ int main() {
 
   im_ready(); // dernière étape avant de commencer la partie
 
-  // first_grid();
+  launch_game();
 }

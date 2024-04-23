@@ -23,3 +23,10 @@ void clear_term() {
   }
   system("clear");
 }
+
+void check_malloc(void *ptr) {
+  if (ptr == NULL) {
+    perror("malloc");
+    exit(EXIT_FAILURE);
+  }
+}

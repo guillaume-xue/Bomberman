@@ -5,5 +5,6 @@
 
 char *id_to_color(int id);
 void clear_term();
+void check_malloc(void *ptr);
 
 #endif

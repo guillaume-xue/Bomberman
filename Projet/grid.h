@@ -1,9 +1,13 @@
-#ifndef GRID_H
+ #ifndef GRID_H
 #define GRID_H
 
-#include "config.h"
+#include <ncurses.h>
+#include <string.h>
 
-void refresh_game(line* l, GridData* g);
-void print_grid(player *current_player, GridData *g);
+#include "config.h"
+#include "func.h"
+
+void init_grid(GridData gridData, int id);
+int print_grid();
 
 #endif 

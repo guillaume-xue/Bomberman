@@ -103,46 +103,6 @@ void init_multicast_socket(Partie *partie) {
   partie->multicast_addr.sin6_scope_id = ifindex;
 }
 
-void free_all_grids(u_int8_t **cases) {
-  for (int i = 0; i < 10; i++) {
-    free(cases[i]);
-  }
-  free(cases);
-}
-
-GridData init_grid_data(uint8_t longueur, uint8_t largeur) {
-  GridData grid;
-
-  memset(&grid.entete, 0, sizeof(grid.entete));
-  grid.entete.CODEREQ = 11;
-  grid.NUM = 0; // Car premier message de la partie
-
-  grid.cases = malloc(longueur * sizeof(uint8_t *));
-  if (grid.cases == NULL) {
-    fprintf(stderr,
-            "Échec d'allocation mémoire pour les lignes de la grille\n");
-    exit(EXIT_FAILURE);
-  }
-
-  for (int i = 0; i < longueur; i++) {
-    grid.cases[i] = malloc(largeur * sizeof(uint8_t));
-    if (grid.cases[i] == NULL) {
-      fprintf(stderr,
-              "Échec d'allocation mémoire pour une ligne de la grille\n");
-      free_all_grids(grid.cases);
-      exit(EXIT_FAILURE);
-    }
-    memset(grid.cases[i], CASE_VIDE, largeur * sizeof(uint8_t));
-  }
-
-  grid.cases[0][0] = JOUEUR0;                      // Coin supérieur gauche
-  grid.cases[0][largeur - 1] = JOUEUR1;            // Coin supérieur droit
-  grid.cases[longueur - 1][0] = JOUEUR2;           // Coin inférieur gauche
-  grid.cases[longueur - 1][largeur - 1] = JOUEUR3; // Coin inférieur droit
-
-  return grid;
-}
-
 // Partie incomplete puisque il faut 4 threads pour les 4 joueurs
 void *handle_tchat(void *arg) {
   int index_partie = *(int *)arg;
@@ -151,6 +111,7 @@ void *handle_tchat(void *arg) {
   memset(buf, 0, sizeof(buf));
 
   while (1) {
+    puts("\033[90mEn attente d'un message...\033[0m");
     if (recv(parties[index_partie].clients_socket_tcp[0], buf, SIZE_MSG, 0) <
         0) {
       perror("La réception du message a échoué");
@@ -159,8 +120,8 @@ void *handle_tchat(void *arg) {
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
       if (parties[index_partie].clients_socket_tcp[i] != -1) {
-        if (send(parties[index_partie].clients_socket_tcp[i], buf, SIZE_MSG, 0) <
-            0) {
+        if (send(parties[index_partie].clients_socket_tcp[i], buf, SIZE_MSG,
+                 0) < 0) {
           perror("L'envoi du message a échoué");
           exit(EXIT_FAILURE);
         }
@@ -169,25 +130,77 @@ void *handle_tchat(void *arg) {
   }
 }
 
+void init_gridData(int index_partie) {
+  GridData *grid = &parties[index_partie].grid;
+
+  memset(&grid->entete, 0, sizeof(grid->entete));
+  grid->entete.CODEREQ = 11;
+  grid->NUM = 0; // Car premier message de la partie
+
+  int terrain_width = 20; // la longueur réelle du terrain de jeu
+  int terrain_height = 10; // la height réelle du terrain de jeu
+
+  grid->width = terrain_width + 2 + 1; // 2 lignes de "-" + 1 ligne de chat
+  grid->height = terrain_height + 2;   // 2 colonnes de "|"
+
+  memset(grid->cases, CASE_VIDE, MAX_CASES * MAX_CASES * sizeof(u_int8_t));
+  grid->cases[0][0] = J0;
+  grid->cases[0][terrain_height - 1] = J1;
+  grid->cases[terrain_width - 1][0] = J2;
+  grid->cases[terrain_width - 1][terrain_height - 1] = J3;
+
+  // int input_valid = 0;
+  // while (!input_valid) {
+  //   printf("Enter the grid length: ");
+  //   if (scanf("%d", &first_grid.longueur) == 1 && first_grid.longueur > 0 &&
+  //   first_grid.longueur <= 20) {
+  //     input_valid = 1;
+  //   } else {
+  //     printf("Invalid input. Please enter a positive integer.\n");
+  //     while (getchar() != '\n')
+  //       ;
+  //   }
+  // }
+
+  // input_valid = 0;
+  // while (!input_valid) {
+  //   printf("Enter the grid width: ");
+  //   if (scanf("%d", &first_grid.largeur) == 1 && first_grid.largeur > 0 &&
+  //   first_grid.longueur <= 20) {
+  //     input_valid = 1;
+  //   } else {
+  //     printf("Invalid input. Please enter a positive integer.\n");
+  //     while (getchar() != '\n')
+  //       ;
+  //   }
+  // }
+}
+
 void *handle_partie(void *arg) {
   int index_partie = *(int *)arg;
 
   clear_term();
-  puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
+  printf("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
 
-  GridData grid = init_grid_data(10, 10);
+  init_gridData(index_partie);
 
-  // Envoie de la grille initiale
-  if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData), 0, (struct sockaddr *)&parties[index_partie].multicast_addr, sizeof(parties[index_partie].multicast_addr)) < 0) {
+  if (sendto(parties[index_partie].send_sock, &parties[index_partie].grid,
+             sizeof(GridData), 0,
+             (struct sockaddr *)&parties[index_partie].multicast_addr,
+             sizeof(parties[index_partie].multicast_addr)) < 0) {
     perror("L'envoi de la grille a échoué");
     exit(EXIT_FAILURE);
   }
-
-  pthread_t thread_tchat_communication;
+  
+  pthread_t thread_grid;
   int *x = malloc(sizeof(int));
   *x = index_partie;
-  pthread_create(&thread_tchat_communication, NULL, handle_tchat, x);
+  pthread_create(&thread_grid, NULL, game_communication, x);
 
+  // pthread_t thread_tchat_communication;
+  // int *x = malloc(sizeof(int));
+  // *x = index_partie;
+  // pthread_create(&thread_tchat_communication, NULL, handle_tchat, x);
 
   free(arg);
   return NULL;
@@ -273,7 +286,7 @@ void *handle_client(void *arg) {
     // pthread_t thread_grid;
     // int *x = malloc(sizeof(int));
     // *x = nb_partie;
-    // pthread_create(&thread_grid, NULL, game_comm, x);
+    // pthread_create(&thread_grid, NULL, game_communication, x);
   } else {
     pthread_mutex_unlock(&mutex_partie);
   }
@@ -282,28 +295,28 @@ void *handle_client(void *arg) {
   return NULL;
 }
 
-int check_maj(GridData *grid_handler, Partie partie) {
+int check_maj(GameMessage *game_message, Partie partie) {
   // On vérifie si l'action du joueur est legit
   return 0;
 }
 
-void *game_comm(void *arg) {
+void *game_communication(void *arg) {
   int partie_id = *(int *)arg;
 
-  GridData grid_handler;
+  GameMessage game_message;
   while (1) {
 
-    memset(&grid_handler, 0, sizeof(GridData));
-    if (recv(parties[partie_id].send_sock, &grid_handler, sizeof(GridData), 0) <
+    memset(&game_message, 0, sizeof(GameMessage));
+    if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage), 0) <
         0) {
       perror("La réception de la grille a échoué");
       exit(EXIT_FAILURE);
     }
 
-    if (check_maj(&grid_handler, parties[partie_id]) == 1)
+    if (check_maj(&game_message, parties[partie_id]) == 1)
       continue; // on vérifie si l'action du joueur est legit
 
-    if (sendto(parties[partie_id].send_sock, &grid_handler, sizeof(GridData), 0,
+    if (sendto(parties[partie_id].send_sock, &game_message, sizeof(GameMessage), 0,
                (struct sockaddr *)&parties[partie_id].multicast_addr,
                sizeof(parties[partie_id].multicast_addr)) < 0) {
       perror("L'envoi de la grille a échoué");
