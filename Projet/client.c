@@ -134,7 +134,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("eth0");
   if (ifindex == 0)
     perror("if_nametoindex");
 

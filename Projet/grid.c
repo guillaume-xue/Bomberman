@@ -7,7 +7,7 @@
 
 #define TEXT_SIZE 255
 
-int player_id;
+int id_p;
 
 typedef struct board {
   char *grid;
@@ -39,7 +39,7 @@ void refresh_game(board *b, line *l) {
       char c = get_grid(b, x, y);
       switch (c) {
       case '1':
-        if (player_id == 1) {
+        if (id_p == 1) {
           attron(COLOR_PAIR(1)); // Activer la couleur
           attron(A_BOLD);        // Activer le gras
           mvaddch(y + 1, x + 1, '1');
@@ -51,7 +51,7 @@ void refresh_game(board *b, line *l) {
         break;
 
       case '2':
-        if (player_id == 2) {
+        if (id_p == 2) {
           attron(COLOR_PAIR(2));
           attron(A_BOLD);
           mvaddch(y + 1, x + 1, '2');
@@ -63,7 +63,7 @@ void refresh_game(board *b, line *l) {
         break;
 
       case '3':
-        if (player_id == 3) {
+        if (id_p == 3) {
           attron(COLOR_PAIR(3));
           attron(A_BOLD);
           mvaddch(y + 1, x + 1, '3');
@@ -75,7 +75,7 @@ void refresh_game(board *b, line *l) {
         break;
 
       case '4':
-        if (player_id == 4) {
+        if (id_p == 4) {
           attron(COLOR_PAIR(4));
           attron(A_BOLD);
           mvaddch(y + 1, x + 1, '4');
@@ -280,7 +280,7 @@ board *grid_to_board(GridData gridData) {
 
 void init_grid(GridData gridData, int id) {
 
-  player_id = id;
+  id_p = id;
 
   puts("Init grid");
   board *b = grid_to_board(gridData);

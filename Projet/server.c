@@ -93,7 +93,7 @@ void init_multicast_socket(Partie *partie) {
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
 
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("eth0");
   if (ifindex == 0) {
     perror("if_nametoindex");
     close(partie->send_sock);
