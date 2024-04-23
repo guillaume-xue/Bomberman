@@ -1,18 +1,22 @@
 #include "client.h"
 #include "grid.h"
 
-int player_id;
+int player_id; // id du joueur
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
 int game_mode;
-GameMessage received_message;
+
+GridData game_grid;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
-struct sockaddr_in6 udp_send_addr;   // adresse de la partie en UDP
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
+struct sockaddr_in6 diffuseur_addr; // adresse de la partie en UDP
+socklen_t difflen = sizeof(diffuseur_addr);
+
 void receive_gmsg(int client_socket) {
+  GameMessage received_message;
   memset(&received_message, 0, sizeof(GameMessage));
   // Réception du message depuis le client
   if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
@@ -62,11 +66,11 @@ void choose_game_mode() {
 
   clear_term();
 
-  GameMessage request;
-  memset(&request, 0, sizeof(GameMessage));
+  EnteteMessage request;
+  memset(&request, 0, sizeof(EnteteMessage));
   request.CODEREQ = game_mode;
 
-  if (send(tcp_socket, &request, sizeof(GameMessage), 0) < 0) {
+  if (send(tcp_socket, &request, sizeof(EnteteMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
   }
@@ -79,11 +83,8 @@ void suscribe_multicast() {
   ServerMessage serv_message;
 
   memset(&serv_message, 0, sizeof(ServerMessage));
-  memset(&udp_send_addr, 0, sizeof(udp_send_addr));
-  memset(&udp_listen_addr, 0, sizeof(udp_listen_addr));
 
   int multicast_port;
-  int partie_port;
   char multicast_addr[INET6_ADDRSTRLEN];
 
   ssize_t received = recv(tcp_socket, &serv_message, sizeof(ServerMessage), 0);
@@ -102,12 +103,7 @@ void suscribe_multicast() {
 
     strcpy(multicast_addr, serv_message.adr_m_diff);
 
-    partie_port = serv_message.port_udp;
-
     color = id_to_color(player_id);
-
-    printf("multicast port : %d , multicast_addr : %s \n", multicast_port,multicast_addr);
-
   }
 
   if ((udp_socket = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
@@ -138,7 +134,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("eth0");
+  int ifindex = if_nametoindex("en0");
   if (ifindex == 0)
     perror("if_nametoindex");
 
@@ -151,41 +147,11 @@ void suscribe_multicast() {
   }
   group.ipv6mr_interface = ifindex;
 
-  char debug_address[INET6_ADDRSTRLEN];
-  inet_ntop(AF_INET6, &group.ipv6mr_multiaddr, debug_address, INET6_ADDRSTRLEN);
-  printf("Multicast Address: %s Port: %d Scope ID: %d\n", debug_address,
-         ntohs(multicast_port), udp_send_addr.sin6_scope_id);
-
   if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, &group,
                  sizeof group) < 0) {
     perror("echec de abonnement groupe");
     close(udp_socket);
     exit(EXIT_FAILURE);
-  }
-
-  udp_send_addr.sin6_family = AF_INET6;
-  udp_send_addr.sin6_port = partie_port;
-  inet_pton(AF_INET6, multicast_addr, &udp_send_addr.sin6_addr);
-}
-
-void init_players_info(player **players) {
-  players = malloc(4 * sizeof(player *));
-  for (int i = 0; i < 4; i++) {
-    players[i] = malloc(sizeof(player));
-    players[i]->p = malloc(sizeof(pos));
-    players[i]->id = i + 1;
-    players[i]->b = malloc(sizeof(bomb) + 1);
-    players[i]->b->set = false;
-    players[i]->gmsg = malloc(sizeof(GameMessage));
-    players[i]->gmsg->ACTION = 5151;
-    players[i]->action = NONE;
-  }
-  players[player_id]->gmsg = malloc(sizeof(GameMessage));
-}
-
-void update_players_action(player **players) {
-  if (players[received_message.ID]->id != player_id) {
-    players[received_message.ID]->action = received_message.ACTION;
   }
 }
 
@@ -201,78 +167,111 @@ void im_ready() {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
   }
+
+  if (game_mode == 1)
+    printf("Mode de jeu : SOLO.\nJe suis %sJoueur %d%s.\n", color, player_id,
+           "\033[0m");
+  else
+    printf("Mode de jeu : EQUIPE.\nJe suis %sJoueur %d%s dans l'équipe %d.\n",
+           color, player_id, "\033[0m", team_number); 
 }
 
-
-void *receive_grid(void *arg) {
-    int udp_socket = *(int *)arg;
-
-    GridData *grid;
-
-    struct sockaddr_in6 diffadr;
-    int recu;
-    socklen_t difflen = sizeof(diffadr);
-
-    while (1) {
-        // Allouer de la mémoire pour la structure GridData
-        grid = (GridData *)malloc(sizeof(GridData));
-        if (grid == NULL) {
-            perror("Erreur d'allocation mémoire pour GridData");
-            exit(EXIT_FAILURE);
-        }
-
-        // Réception du GridData depuis le socket UDP
-        if ((recu = recvfrom(udp_socket, grid, sizeof(GridData), 0,
-                             (struct sockaddr *)&diffadr, &difflen)) < 0) {
-            perror("Erreur lors de la réception du GridData");
-            free(grid);
-            continue; // Passer à l'itération suivante de la boucle
-        }
-        printf("Réception du Grid : longueur %d , largeur %d \n", grid->longueur,grid->largeur);
-
-        free(grid);
-
-        // Attendre 10 secondes avant de recevoir le prochain GridData
-        sleep(10);
+void grid_communication() {
+  GridData grid;
+  while (1) {
+    memset(&grid, 0, sizeof(GridData));
+    if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0,
+                 (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
+      perror("echec de read");
     }
 
-    return NULL;
+    // print_grid(me, &grid);
+  }
+}
+ 
+
+// A faire dans le switch, afin de savoir si on envoie en TCP ou en UDP
+void *receive_tchat(void *arg) {
+  char message[SIZE_MSG];
+  while (1) {
+    memset(message, 0, SIZE_MSG);
+    if (recv(tcp_socket, message, SIZE_MSG, 0) < 0) {
+      perror("La réception du message a échoué");
+      exit(EXIT_FAILURE);
+    }
+
+    printf("\033[1;32m%s\033[0m\n", message);
+  }
 }
 
-void wait_for_game_start() {
+void *send_tchat(void *arg) {
+  char instruction[SIZE_MSG];
+  sprintf(instruction, "Veuillez choisir un mode : 1 or 2\n"
+                       "      1. Message à tout le monde.\n"
+                       "      2. Message à votre partenaire.\n\n"
+                       "Mon choix est : ");
+  printf("%s", instruction);
 
   char buf[SIZE_MSG];
-  memset(buf, 0, sizeof(buf));
+  while (1) {
+    memset(buf, 0, SIZE_MSG);
 
-  struct sockaddr_in6 diffadr;
-  int recu;
-  socklen_t difflen = sizeof(diffadr);
+    scanf("%s", buf);
 
-  if (recvfrom(udp_socket, buf, sizeof(buf) - 1, 0,
-               (struct sockaddr *)&diffadr, &difflen) < 0) {
-    perror("echec de read");
-  }
-  printf("Message : %s\n", buf);
-  char debug_address[INET6_ADDRSTRLEN];
-  inet_ntop(AF_INET6, &diffadr.sin6_addr, debug_address, INET6_ADDRSTRLEN);
-  printf("Message reçu de %s\n", debug_address);
-  printf("Port : %d\n", ntohs(diffadr.sin6_port));
-  printf("Scope ID : %d\n", diffadr.sin6_scope_id);
+    if (atoi(buf) == 1 || atoi(buf) == 2) {
+      int choice = atoi(buf);
+      char message[SIZE_MSG];
+      printf("Entrez votre message : ");
+      scanf("%s", message);
 
-  memset(buf, 0, sizeof(buf));
-  if ((recu = recvfrom(udp_socket, buf, sizeof(buf) - 1, 0,
-                       (struct sockaddr *)&diffadr, &difflen)) < 0) {
-    perror("echec de recvfrom.");
-  }
+      TchatMessage tchat_message;
+      memset(&tchat_message, 0, sizeof(TchatMessage));
+      tchat_message.entete.CODEREQ = htons(choice + 6);
+      tchat_message.entete.ID = htons(player_id);
+      tchat_message.entete.EQ = (game_mode == 2) ? team_number : -1;
+      tchat_message.LEN = strlen(message);
+      strcpy(tchat_message.DATA, message);
 
-  printf("Message : %s\n", buf);
-
-   pthread_t tid;
-    if (pthread_create(&tid, NULL, receive_grid, (void *)&udp_socket) != 0) {
-        perror("Erreur lors de la création du thread pour la réception du grid");
+      if (send(tcp_socket, &tchat_message, sizeof(TchatMessage), 0) < 0) {
+        perror("L'envoi du message a échoué");
         exit(EXIT_FAILURE);
+      }
+    } else {
+      puts("\n\n\033[31mVeuillez choisir 1 (Message à tout le monde) ou 2 "
+           "(Message à partenaire)\033[0m\n");
+      printf("%s", instruction);
     }
+  }
 }
+
+void send_recv_tchat() {
+  pthread_t thread_recv_tchat;
+  pthread_t thread_send_tchat;
+
+  if (pthread_create(&thread_recv_tchat, NULL, receive_tchat, NULL) != 0) {
+    perror("Erreur lors de la création du thread pour la réception du tchat");
+    exit(EXIT_FAILURE);
+  }
+
+  if (pthread_create(&thread_send_tchat, NULL, send_tchat, NULL) != 0) {
+    perror("Erreur lors de la création du thread pour l'envoi du tchat");
+    exit(EXIT_FAILURE);
+  }
+}
+
+void launch_game() {
+  GridData first_grid;
+  memset(&first_grid, 0, sizeof(GridData));
+
+  if (recv(udp_socket, &first_grid, sizeof(GridData), 0) < 0) {
+    perror("La réception de la première grille a échoué");
+    exit(EXIT_FAILURE);
+  }
+
+  init_grid(first_grid, player_id);
+
+  // grid_communication();
+ }
 
 int main() {
   connexion_to_tcp_server();
@@ -283,12 +282,5 @@ int main() {
 
   im_ready(); // dernière étape avant de commencer la partie
 
-  wait_for_game_start();
-
-  printf("La partie a commencé, à vous de jouer !\n");
-
-  // Envoyer les messages en udp
-  while(1){
-    
-  }
+  launch_game();
 }

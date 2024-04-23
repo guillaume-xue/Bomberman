@@ -1,322 +1,312 @@
-// Build with -lncurses option
+#include <ncurses.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "grid.h"
 
-int ap;
-board* b;
-//int player_id = 1; cette identifiant existe déjà dans client.h
-player **players;
+#define TEXT_SIZE 255
 
-void setup_board() {
-    int lines = 22;
-    int columns = 51;
-    b = malloc(sizeof(board)); // Allocate memory for 'b'
-    if (b == NULL) {
-        perror("Memory allocation error for 'b'");
-        exit(EXIT_FAILURE);
-    }
-    b->hauteur = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
-    b->largeur = columns - 2; // 2 columns reserved for border
-    b->grid = calloc((b->largeur) * (b->hauteur), sizeof(char));
-    if (b->grid == NULL) {
-        perror("Memory allocation error for 'b->grid'");
-        exit(EXIT_FAILURE);
-    }
+int player_id;
+
+typedef struct board {
+  char *grid;
+  int w; // width    ----
+  int h; // height   |
+} board;
+
+void setup_board(board *board) {
+  int lines;
+  int columns;
+  getmaxyx(stdscr, lines, columns);
+  board->h = lines - 2 - 1; // 2 rows reserved for border, 1 row for chat
+  board->w = columns - 2;   // 2 columns reserved for border
+  board->grid = calloc((board->w) * (board->h), sizeof(char));
 }
 
-// Place les murs sur la grille
-void setup_wall() {
-    // On met des murs incassables sur les cases impaires
-    for (int i = 1; i < b->largeur; i+=2) {
-        for (int j = 1; j < b->hauteur; j+=2) {
-            set_grid(i, j, 1);
+void free_board(board *board) { free(board->grid); }
+
+ContenuCase get_grid(board *b, int x, int y) { return b->grid[y * b->w + x]; }
+
+void set_grid(board *b, int x, int y, ContenuCase v) {
+  b->grid[y * b->w + x] = v;
+}
+
+void refresh_game(board *b, line *l) {
+  int x, y;
+  for (y = 0; y < b->h; y++) {
+    for (x = 0; x < b->w; x++) {
+      char c = get_grid(b, x, y);
+      switch (c) {
+      case '1':
+        if (player_id == 1) {
+          attron(COLOR_PAIR(1)); // Activer la couleur
+          attron(A_BOLD);        // Activer le gras
+          mvaddch(y + 1, x + 1, '1');
+          attroff(A_BOLD);        // Désactiver le gras
+          attroff(COLOR_PAIR(1)); // Désactiver la couleur
+        } else {
+          mvaddch(y + 1, x + 1, c); // Afficher le caractère normalement
         }
-    }
-    // On met des murs cassables aléatoirement
-    int i = 0;
-    while (i < NB_WALLS) {
-        int x = rand() % b->largeur;
-        int y = rand() % b->hauteur;
-        if (get_grid(x, y) == 0){
-            set_grid(x, y, 2);
-            i++;
+        break;
+
+      case '2':
+        if (player_id == 2) {
+          attron(COLOR_PAIR(2));
+          attron(A_BOLD);
+          mvaddch(y + 1, x + 1, '2');
+          attroff(A_BOLD);
+          attroff(COLOR_PAIR(2));
+        } else {
+          mvaddch(y + 1, x + 1, c);
         }
-    }
-}
+        break;
 
-void setup_players() {
-    players[0]->p->x = 0; players[0]->p->y = 0;
-    players[1]->p->x = b->largeur - 1; players[1]->p->y = 0;
-    players[2]->p->x = 0; players[2]->p->y = b->hauteur-1;
-    players[3]->p->x = b->largeur - 1; players[3]->p->y = b->hauteur-1;
-}
-
-void free_board() {
-    free(b->grid);
-}
-
-int get_grid(int x, int y) {
-    return b->grid[(y*b->largeur) + x];
-}
-
-void set_grid(int x, int y, int v) {
-    b->grid[y*b->largeur + x] = v;
-}
-
-void refresh_game(line* l) {
-    // Update grid
-    int x,y;
-    for (y = 0; y < b->hauteur; y++) {
-        for (x = 0; x < b->largeur; x++) {
-            char c;
-            switch (get_grid(x, y)) {
-                case 0:
-                    c = ' ';
-                    break;
-                case 1:
-                    c = 'U';
-                    break;
-                case 2:
-                    c = 'B';
-                    break;
-                case 3:
-                    c = 'X';
-                    break;
-                case 4:
-                    c = 'Y';
-                    break;
-                case 5:
-                    c = '1';
-                    break;
-                case 6:
-                    c = '2';
-                    break;
-                case 7:
-                    c = '3';
-                    break;
-                case 8:
-                    c = '4';
-                    break;
-                default:
-                    c = '?';
-                    break;
-            }
-            mvaddch(y+1,x+1,c);
+      case '3':
+        if (player_id == 3) {
+          attron(COLOR_PAIR(3));
+          attron(A_BOLD);
+          mvaddch(y + 1, x + 1, '3');
+          attroff(A_BOLD);
+          attroff(COLOR_PAIR(3));
+        } else {
+          mvaddch(y + 1, x + 1, c);
         }
-    }
-    for (x = 0; x < b->largeur+2; x++) {
-        mvaddch(0, x, '-');
-        mvaddch(b->hauteur+1, x, '-');
-    }
-    for (y = 0; y < b->hauteur+2; y++) {
-        mvaddch(y, 0, '|');
-        mvaddch(y, b->largeur+1, '|');
-    }
-    // Update chat text
-    attron(COLOR_PAIR(1)); // Enable custom color 1
-    attron(A_BOLD); // Enable bold
-    for (x = 0; x < b->largeur+2; x++) {
-        if (x >= TEXT_SIZE || x >= l->cursor)
-            mvaddch(b->hauteur+2, x, ' ');
-        else
-            mvaddch(b->hauteur+2, x, l->data[x]);
-    }
-    attroff(A_BOLD); // Disable bold
-    attroff(COLOR_PAIR(1)); // Disable custom color 1
-    refresh(); // Apply the changes to the terminal
-}
+        break;
 
-ACTION control(line* l) {
-    int c;
-    int prev_c = ERR;
-    // We consume all similar consecutive key presses
-    while ((c = getch()) != ERR) { // getch returns the first key press in the queue
-        if (prev_c != ERR && prev_c != c) {
-            ungetch(c); // put 'c' back in the queue
-            break;
+      case '4':
+        if (player_id == 4) {
+          attron(COLOR_PAIR(4));
+          attron(A_BOLD);
+          mvaddch(y + 1, x + 1, '4');
+          attroff(A_BOLD);
+          attroff(COLOR_PAIR(4));
+        } else {
+          mvaddch(y + 1, x + 1, c);
         }
-        prev_c = c;
+        break;
+
+      default:
+        mvaddch(y + 1, x + 1,
+                c); // Afficher le caractère normalement pour le reste
+        break;
+      }
     }
-    ACTION a = NONE;
-    switch (prev_c) {
-        case ERR: break;
-        case KEY_LEFT:
-            a = LEFT; break;
-        case KEY_RIGHT:
-            a = RIGHT; break;
-        case KEY_UP:
-            a = UP; break;
-        case KEY_DOWN:
-            a = DOWN; break;
-        case 'b':
-            a = BOMB; break;
-        case '~':
-            a = QUIT; break;
-        case KEY_BACKSPACE:
-            if (l->cursor > 0) l->cursor--;
-            break;
-        default:
-            if (prev_c >= ' ' && prev_c <= '~' && l->cursor < TEXT_SIZE)
-                l->data[(l->cursor)++] = prev_c;
-            break;
+  }
+  for (x = 0; x < b->w + 2; x++) {
+    mvaddch(0, x, '-');
+    mvaddch(b->h + 1, x, '-');
+  }
+  for (y = 0; y < b->h + 2; y++) {
+    mvaddch(y, 0, '|');
+    mvaddch(y, b->w + 1, '|');
+  }
+  // Update chat text
+  attron(COLOR_PAIR(1)); // Enable custom color 1
+  attron(A_BOLD);        // Enable bold
+  for (x = 0; x < b->w + 2; x++) {
+    if (x >= TEXT_SIZE || x >= l->cursor)
+      mvaddch(b->h + 2, x, ' ');
+    else
+      mvaddch(b->h + 2, x, l->data[x]);
+  }
+  attroff(A_BOLD);        // Disable bold
+  attroff(COLOR_PAIR(1)); // Disable custom color 1
+  refresh();              // Apply the changes to the terminal
+}
+
+ACTION control(line *l) {
+  int c;
+  int prev_c = ERR;
+  // We consume all similar consecutive key presses
+  while ((c = getch()) !=
+         ERR) { // getch returns the first key press in the queue
+    if (prev_c != ERR && prev_c != c) {
+      ungetch(c); // put 'c' back in the queue
+      break;
     }
-    return a;
+    prev_c = c;
+  }
+  ACTION a = NONE;
+  switch (prev_c) {
+  case ERR:
+    break;
+  case KEY_LEFT:
+    a = LEFT;
+    break;
+  case KEY_RIGHT:
+    a = RIGHT;
+    break;
+  case KEY_UP:
+    a = UP;
+    break;
+  case KEY_DOWN:
+    a = DOWN;
+    break;
+  case '~':
+    a = QUIT;
+    break;
+  case KEY_BACKSPACE:
+    if (l->cursor > 0)
+      l->cursor--;
+    break;
+  default:
+    if (prev_c >= ' ' && prev_c <= '~' && l->cursor < TEXT_SIZE)
+      l->data[(l->cursor)++] = prev_c;
+    break;
+  }
+  return a;
 }
 
-void clear_grid(int x, int y) {
-    set_grid(x, y, 0);
+bool perform_action(board *b, pos *p, ACTION a) {
+  int xd = 0;
+  int yd = 0;
+  switch (a) {
+  case LEFT:
+    xd = -1;
+    yd = 0;
+    break;
+  case RIGHT:
+    xd = 1;
+    yd = 0;
+    break;
+  case UP:
+    xd = 0;
+    yd = -1;
+    break;
+  case DOWN:
+    xd = 0;
+    yd = 1;
+    break;
+  case QUIT:
+    return true;
+  default:
+    break;
+  }
+  p->x += xd;
+  p->y += yd;
+  p->x = (p->x + b->w) % b->w;
+  p->y = (p->y + b->h) % b->h;
+  set_grid(b, p->x, p->y, 1);
+  return false;
 }
 
-bool perform_action(player * p, ACTION a) {
-    // Efface l'ancienne position du joueur
-    clear_grid(p->p->x, p->p->y);
+int print_grid() {
+  board *b = malloc(sizeof(board));
+  ;
+  line *l = malloc(sizeof(line));
+  l->cursor = 0;
+  pos *p = malloc(sizeof(pos));
+  p->x = 0;
+  p->y = 0;
 
-    int xd = 0;
-    int yd = 0;
+  // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done
+  // on the same thread.
+  initscr();                /* Start curses mode */
+  raw();                    /* Disable line buffering */
+  intrflush(stdscr, FALSE); /* No need to flush when intr key is pressed */
+  keypad(stdscr, TRUE);     /* Required in order to get events from keyboard */
+  nodelay(stdscr, TRUE);    /* Make getch non-blocking */
+  noecho(); /* Don't echo() while we do getch (we will manually print characters
+               when relevant) */
+  curs_set(0);                             // Set the cursor to invisible
+  start_color();                           // Enable colors
+  init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is
+                                           // yellow, background is black)
 
-    switch (a) {
-        case LEFT:
-            xd = -1; yd = 0; break;
-        case RIGHT:
-            xd = 1; yd = 0; break;
-        case UP:
-            xd = 0; yd = -1; break;
-        case DOWN:
-            xd = 0; yd = 1; break;
-        case BOMB:
-            p->b->set = true;
-            signal(SIGALRM, alarm_handler);
-            alarm(3);
-            break;
-        case QUIT:
-            return true;
-        default: break;
+  setup_board(b);
+  while (true) {
+    ACTION a = control(l);
+    if (perform_action(b, p, a))
+      break;
+    refresh_game(b, l);
+    // refresh_game(b,l);
+    usleep(30 * 1000);
+  }
+  free_board(b);
+
+  curs_set(1); // Set the cursor to visible again
+  endwin();    /* End curses mode */
+
+  free(p);
+  free(l);
+  free(b);
+
+  return 0;
+}
+
+char get_grid_char(GridData gridData, int i, int j) {
+  switch (gridData.cases[i][j]) {
+  case CASE_VIDE:
+    return ' ';
+  case MUR_INDESTRUCTIBLE:
+    return '#';
+  case MUR_DESTRUCTIBLE:
+    return 'X';
+  case BOMBE:
+    return 'B';
+  case EXPLOSION:
+    return 'E';
+  case J0:
+    return '1';
+  case J1:
+    return '2';
+  case J2:
+    return '3';
+  case J3:
+    return '4';
+  default:
+    return '?';
+  }
+}
+
+board *grid_to_board(GridData gridData) {
+  board *b = malloc(sizeof(board));
+  check_malloc(b);
+
+  b->w = gridData.width - 2 - 1;
+  b->h = gridData.height - 2;
+  b->grid = calloc((b->w) * (b->h), sizeof(char));
+  check_malloc(b->grid);
+
+  for (int i = 0; i < b->w; i++) {
+    for (int j = 0; j < b->h; j++) {
+      set_grid(b, i, j, get_grid_char(gridData, i, j));
     }
+  }
 
-    if (p->b->set) {
-        set_grid(p->b->x, p->b->y, 3);
-    }else{
-        p->b->x = p->p->x;
-        p->b->y = p->p->y;
-    }
-
-    if(is_movable(p->p->x + xd, p->p->y + yd)){
-        // On bouge
-        p->p->x += xd;
-        p->p->y += yd;
-        switch (p->id) {
-            case 1:
-                set_grid(p->p->x, p->p->y, 5);
-                break;
-            case 2:
-                set_grid(p->p->x, p->p->y, 6);
-                break;
-            case 3:
-                set_grid(p->p->x, p->p->y, 7);
-                break;
-            case 4:
-                set_grid(p->p->x, p->p->y, 8);
-                break;
-            default:
-                break;
-        }
-    }
-    return false;
+  return b;
 }
 
-bool perform_action_all(){
-    for (int i = 0; i < 4; i++) {
-        if (perform_action(players[i], players[i]->action)) return true;
-    }
-    return false;
+void init_grid(GridData gridData, int id) {
+
+  player_id = id;
+
+  puts("Init grid");
+  board *b = grid_to_board(gridData);
+  puts("Init grid");
+  line *l = malloc(sizeof(line));
+  l->cursor = 0;
+
+  // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done
+  // on the same thread.
+  initscr();                /* Start curses mode */
+  raw();                    /* Disable line buffering */
+  intrflush(stdscr, FALSE); /* No need to flush when intr key is pressed */
+  keypad(stdscr, TRUE);     /* Required in order to get events from keyboard */
+  nodelay(stdscr, TRUE);    /* Make getch non-blocking */
+  noecho(); /* Don't echo() while we do getch (we will manually print characters
+               when relevant) */
+  curs_set(0);                              // Set the cursor to invisible
+  start_color();                            // Enable colors
+  init_pair(1, COLOR_GREEN, COLOR_BLACK);   // Define a new color style (text is
+                                           // green, background is black)
+  init_pair(2, COLOR_YELLOW, COLOR_BLACK);  // Define a new color style (text is
+                                            // yellow, background is black)
+  init_pair(3, COLOR_MAGENTA, COLOR_BLACK); // Define a new color style (text is
+                                            // magenta, background is black)
+  init_pair(4, COLOR_CYAN, COLOR_BLACK);    // Define a new color style (text is
+                                            // cyan, background is black)
+
+  refresh_game(b, l);
 }
-
-bool is_movable(int x, int y) {
-    return x >= 0 && x < b->largeur && y >= 0 && y < b->hauteur && !is_wall(x, y) && !is_bomb(x, y);
-}
-
-bool is_bomb(int x, int y) {
-    return get_grid(x, y) == 3;
-}
-
-void alarm_handler(int signum) {
-    // This function will be called when the SIGALRM signal is received
-    explode_bomb();
-}
-
-void explode_bomb(){
-    for (int i = players[1]->b->x - 1; i <= players[1]->b->x + 1; i++) {
-        for (int j = players[1]->b->y - 1; j <= players[1]->b->y + 1; j++) {
-            if (i >= 0 && i < b->largeur && j >= 0 && j < b->hauteur && is_wall_breakable(i, j)){
-                clear_grid(i, j);
-            }
-        }
-    }
-    clear_grid(players[1]->b->x, players[1]->b->y);
-    players[1]->b->set = false;
-}
-
-bool is_wall_breakable(int x, int y){
-    return get_grid(x, y) == 2;
-}
-
-// Retourne vrai si la case est un mur
-bool is_wall(int x, int y) {
-    return get_grid(x, y) == 1 || get_grid(x, y) == 2 ;
-}
-
-void update_action(line *l){
-    players[ap-1]->action = control(l);
-    for (int i = 0; i < 4; ++i) {
-        if (players[i]->id != ap) {
-            int x = players[i]->gmsg->ACTION;
-            if (x > 5 || x < 0) break;
-            players[i]->action = x;
-        }
-    }
-}
-
-int grid_creation(int actual_player, player **pls) {
-    ap = actual_player;
-    players = pls;
-
-    line* l = malloc(sizeof(line) + 1);
-    if (l == NULL) {
-        perror("Memory allocation error for 'l'");
-        exit(EXIT_FAILURE);
-    }
-    l->cursor = 0;
-
-    // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done on the same thread.
-    initscr(); /* Start curses mode */
-    raw(); /* Disable line buffering */
-    intrflush(stdscr, FALSE); /* No need to flush when intr key is pressed */
-    keypad(stdscr, TRUE); /* Required in order to get events from keyboard */
-    nodelay(stdscr, TRUE); /* Make getch non-blocking */
-    noecho(); /* Don't echo() while we do getch (we will manually print characters when relevant) */
-    curs_set(0); // Set the cursor to invisible
-    start_color(); // Enable colors
-    init_pair(1, COLOR_YELLOW, COLOR_BLACK); // Define a new color style (text is yellow, background is black)
-
-    setup_board();
-    setup_players();
-    setup_wall();
-
-    while (true) {
-        update_action(l);
-        if (perform_action_all()) break;
-        refresh_game(l);
-        usleep(30 * 1000);
-    }
-
-    free_board();
-
-    curs_set(1); // Set the cursor to visible again
-    endwin(); /* End curses mode */
-
-    free(l);
-    free(b);
-
-    return 0;
-}
-
-

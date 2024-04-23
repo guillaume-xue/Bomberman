@@ -1,24 +1,11 @@
 #include "server.h"
 
-#define MAX_PARTIES 4
-
 Partie parties[MAX_PARTIES];
 
 int nb_partie = 0;
-GridData* grille;
 
 pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_partie = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mutex_joueur[100];
-pthread_cond_t cond_joueur[100];
-
-void init_mutex() {
-  for (int i = 0; i < 100; i++) {
-    pthread_mutex_init(&mutex_joueur[i], NULL);
-    pthread_cond_init(&cond_joueur[i], NULL);
-  }
-}
-
 
 void add_partie(int client_socket, int mode_jeu) {
   int i = nb_partie;
@@ -45,7 +32,8 @@ int join_or_create(int client_socket, int mode_jeu) {
 
   for (int i = 0; i < nb_partie; i++) {
     if (parties[i].mode_jeu != -1) {
-      if (parties[i].mode_jeu == mode_jeu && parties[i].nb_joueurs < 4) {
+      if (parties[i].mode_jeu == mode_jeu &&
+          parties[i].nb_joueurs < MAX_CLIENTS) {
         add_player(&parties[i], client_socket);
         pthread_mutex_unlock(&mutex_partie);
         return i;
@@ -83,11 +71,10 @@ void send_game_s_info(Partie *partie, int client_socket) {
     perror("L'envoi des informations de la partie a échoué");
     exit(EXIT_FAILURE);
   }
-
 }
 
 void init_multicast_socket(Partie *partie) {
-  // Création de la socket 
+  // Création de la socket
   partie->send_sock = socket(AF_INET6, SOCK_DGRAM, 0);
   if (partie->send_sock < 0) {
     perror("socket for sending failed");
@@ -96,16 +83,17 @@ void init_multicast_socket(Partie *partie) {
 
   /* Initialisation de l'adresse d'abonnement */
   memset(&partie->multicast_addr, 0, sizeof(partie->multicast_addr));
-  
+
   char multicast_group[INET6_ADDRSTRLEN];
-  snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x", partie->partie_id + 1);
-  
-/* Initialisation de l'adresse d'abonnement */
+  snprintf(multicast_group, sizeof(multicast_group), "ff02::1:2:3:%x",
+           partie->partie_id + 1);
+
+  /* Initialisation de l'adresse d'abonnement */
   partie->multicast_addr.sin6_family = AF_INET6;
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
-  
-  int ifindex = if_nametoindex("eth0");
+
+  int ifindex = if_nametoindex("en0");
   if (ifindex == 0) {
     perror("if_nametoindex");
     close(partie->send_sock);
@@ -113,74 +101,119 @@ void init_multicast_socket(Partie *partie) {
   }
 
   partie->multicast_addr.sin6_scope_id = ifindex;
-
-  printf("Multicast Address: %s Port: %d Scope ID: %d\n", multicast_group, ntohs(partie->multicast_addr.sin6_port), partie->multicast_addr.sin6_scope_id);
 }
 
-GridData* init_grid_data(uint8_t longueur, uint8_t largeur) {
-    GridData* grid = (GridData*)malloc(sizeof(GridData));
-    if (grid == NULL) {
-        perror("Erreur lors de l'allocation mémoire pour GridData");
-        exit(EXIT_FAILURE);
+// Partie incomplete puisque il faut 4 threads pour les 4 joueurs
+void *handle_tchat(void *arg) {
+  int index_partie = *(int *)arg;
+
+  char buf[SIZE_MSG];
+  memset(buf, 0, sizeof(buf));
+
+  while (1) {
+    puts("\033[90mEn attente d'un message...\033[0m");
+    if (recv(parties[index_partie].clients_socket_tcp[0], buf, SIZE_MSG, 0) <
+        0) {
+      perror("La réception du message a échoué");
+      exit(EXIT_FAILURE);
     }
 
-    grid->longueur = longueur;
-    grid->largeur = largeur;
-
-    grid->cases = (uint8_t*)malloc(longueur * largeur * sizeof(uint8_t));
-    if (grid->cases == NULL) {
-        perror("Erreur lors de l'allocation mémoire pour le tableau de cases");
-        exit(EXIT_FAILURE);
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+      if (parties[index_partie].clients_socket_tcp[i] != -1) {
+        if (send(parties[index_partie].clients_socket_tcp[i], buf, SIZE_MSG,
+                 0) < 0) {
+          perror("L'envoi du message a échoué");
+          exit(EXIT_FAILURE);
+        }
+      }
     }
-
-    for (int i = 0; i < longueur * largeur; i++) {
-        grid->cases[i] = 0;
-    }
-
-    return grid;
+  }
 }
 
+void init_gridData(int index_partie) {
+  GridData *grid = &parties[index_partie].grid;
 
-void envoyer_grille(Partie *partie) {
-    // Envoyer le buffer contenant la grille en multicast
-    ssize_t bytes_sent;
-    
-    bytes_sent = sendto(partie->send_sock, (void *)grille, sizeof(GridData), 0, (struct sockaddr *)&partie->multicast_addr, sizeof(struct sockaddr_in6));
-    if (bytes_sent == -1) {
-        perror("Erreur lors de l'envoi de la grille en multicast");
-    }
-    printf("Update GRID \n");
- }
+  memset(&grid->entete, 0, sizeof(grid->entete));
+  grid->entete.CODEREQ = 11;
+  grid->NUM = 0; // Car premier message de la partie
 
-void* signalement_debut_partie(void *arg) {
-    Partie* partie = (Partie *)arg;
+  int terrain_width = 20; // la longueur réelle du terrain de jeu
+  int terrain_height = 10; // la height réelle du terrain de jeu
 
-    char message[SIZE_MSG];
-    snprintf(message, SIZE_MSG, "La partie a commencé !");
-    ssize_t size;
+  grid->width = terrain_width + 2 + 1; // 2 lignes de "-" + 1 ligne de chat
+  grid->height = terrain_height + 2;   // 2 colonnes de "|"
 
-    if ((size = sendto(partie->send_sock, message, strlen(message), 0, (struct sockaddr *)&partie->multicast_addr, sizeof(struct sockaddr_in6))) < 0){
-        perror("erreur send");
-    }
+  memset(grid->cases, CASE_VIDE, MAX_CASES * MAX_CASES * sizeof(u_int8_t));
+  grid->cases[0][0] = J0;
+  grid->cases[0][terrain_height - 1] = J1;
+  grid->cases[terrain_width - 1][0] = J2;
+  grid->cases[terrain_width - 1][terrain_height - 1] = J3;
 
-    printf("send : %ld\n", size);
+  // int input_valid = 0;
+  // while (!input_valid) {
+  //   printf("Enter the grid length: ");
+  //   if (scanf("%d", &first_grid.longueur) == 1 && first_grid.longueur > 0 &&
+  //   first_grid.longueur <= 20) {
+  //     input_valid = 1;
+  //   } else {
+  //     printf("Invalid input. Please enter a positive integer.\n");
+  //     while (getchar() != '\n')
+  //       ;
+  //   }
+  // }
 
-    grille = init_grid_data(10,10);
-    while(1){
-         envoyer_grille(partie);
-    }
-    return NULL;
+  // input_valid = 0;
+  // while (!input_valid) {
+  //   printf("Enter the grid width: ");
+  //   if (scanf("%d", &first_grid.largeur) == 1 && first_grid.largeur > 0 &&
+  //   first_grid.longueur <= 20) {
+  //     input_valid = 1;
+  //   } else {
+  //     printf("Invalid input. Please enter a positive integer.\n");
+  //     while (getchar() != '\n')
+  //       ;
+  //   }
+  // }
 }
 
+void *handle_partie(void *arg) {
+  int index_partie = *(int *)arg;
+
+  clear_term();
+  printf("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
+
+  init_gridData(index_partie);
+
+  if (sendto(parties[index_partie].send_sock, &parties[index_partie].grid,
+             sizeof(GridData), 0,
+             (struct sockaddr *)&parties[index_partie].multicast_addr,
+             sizeof(parties[index_partie].multicast_addr)) < 0) {
+    perror("L'envoi de la grille a échoué");
+    exit(EXIT_FAILURE);
+  }
+  
+  pthread_t thread_grid;
+  int *x = malloc(sizeof(int));
+  *x = index_partie;
+  pthread_create(&thread_grid, NULL, game_communication, x);
+
+  // pthread_t thread_tchat_communication;
+  // int *x = malloc(sizeof(int));
+  // *x = index_partie;
+  // pthread_create(&thread_tchat_communication, NULL, handle_tchat, x);
+
+  free(arg);
+  return NULL;
+}
 
 void *handle_client(void *arg) {
   int client_socket = *(int *)arg;
 
-  GameMessage received_message;
-  memset(&received_message, 0, sizeof(GameMessage));
+  EnteteMessage received_message;
+  memset(&received_message, 0, sizeof(EnteteMessage));
 
   // Réception du message depuis le client
-  if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
+  if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
     perror("La réception du message a échoué");
     exit(EXIT_FAILURE);
   }
@@ -216,45 +249,81 @@ void *handle_client(void *arg) {
   }
 
   printf("%s\n", buf);
+
+  pthread_mutex_lock(&mutex_partie);
   printf("Il reste %d places dans la partie n.%d %s\n",
-         4 - parties[index_partie].nb_joueurs, index_partie,
-         (4 - parties[index_partie].nb_joueurs == 0)
+         MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
+         (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0)
              ? "\n\033[31m\nNous sommes au complet, la partie peut commencer "
                "!!\033[0m\n"
              : "\n");
 
-  if (4 - parties[index_partie].nb_joueurs == 0) {
-    printf("\033[90mLa partie n.%d va commencer dans 5 secondes.\033[0m\n",
-           index_partie);
-    for (int i = 0; i < 5; i++) {
-      printf("\033[90m%d\033[0m \n", 5 - i);
-      sleep(1);
-    }
-    puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
+  if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
+    pthread_t thread_partie;
+    int *x = malloc(sizeof(int));
+    *x = index_partie;
+    pthread_create(&thread_partie, NULL, handle_partie, x);
 
-    pthread_t tid;
-    if (pthread_create(&tid, NULL, signalement_debut_partie, (void*)&parties[index_partie]) != 0) {
-        perror("Erreur lors de la création du thread");
-        exit(EXIT_FAILURE);
-    }
-    //pthread_join(tid, NULL);
+    // pthread_mutex_unlock(&mutex_partie);
+    // printf("\033[90mLa partie n.%d va commencer dans 3 secondes.\033[0m\n",
+    //        index_partie);
+    // for (int i = 0; i < 3; i++) {
+    //   printf("\033[90m%d\033[0m \n", 3 - i);
+    //   sleep(1);
+    // }
+    // puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
+
+    // GridData grid = init_grid_data(10, 10);
+
+    // // Envoie de la grille initiale
+    // if (sendto(parties[index_partie].send_sock, &grid, sizeof(GridData), 0,
+    //            (struct sockaddr *)&parties[index_partie].multicast_addr,
+    //            sizeof(parties[index_partie].multicast_addr)) < 0) {
+    //   perror("L'envoi de la grille a échoué");
+    //   exit(EXIT_FAILURE);
+    // }
+
+    // pthread_t thread_grid;
+    // int *x = malloc(sizeof(int));
+    // *x = nb_partie;
+    // pthread_create(&thread_grid, NULL, game_communication, x);
+  } else {
+    pthread_mutex_unlock(&mutex_partie);
   }
 
+  free(arg);
   return NULL;
 }
 
+int check_maj(GameMessage *game_message, Partie partie) {
+  // On vérifie si l'action du joueur est legit
+  return 0;
+}
 
-void *handle_partie(void *arg) {
-  int client_socket = *(int *)arg;
+void *game_communication(void *arg) {
+  int partie_id = *(int *)arg;
 
-  int *x = malloc(sizeof(int));
-  if (!x) {
-    perror("L'allocation de la mémoire a échoué");
-    exit(EXIT_FAILURE);
-  } else {
-    *x = client_socket;
-    pthread_t thread_client;
-    pthread_create(&thread_client, NULL, handle_client, x);
+  GameMessage game_message;
+  while (1) {
+
+    memset(&game_message, 0, sizeof(GameMessage));
+    if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage), 0) <
+        0) {
+      perror("La réception de la grille a échoué");
+      exit(EXIT_FAILURE);
+    }
+
+    if (check_maj(&game_message, parties[partie_id]) == 1)
+      continue; // on vérifie si l'action du joueur est legit
+
+    if (sendto(parties[partie_id].send_sock, &game_message, sizeof(GameMessage), 0,
+               (struct sockaddr *)&parties[partie_id].multicast_addr,
+               sizeof(parties[partie_id].multicast_addr)) < 0) {
+      perror("L'envoi de la grille a échoué");
+      exit(EXIT_FAILURE);
+    }
+
+    sleep(INTERVALLE_ENVOI);
   }
 
   return NULL;
@@ -304,7 +373,7 @@ int main() {
 
       *x = client_socket_tcp;
       pthread_t thread_client;
-      pthread_create(&thread_client, NULL, handle_partie, x);
+      pthread_create(&thread_client, NULL, handle_client, x);
     }
   }
 
