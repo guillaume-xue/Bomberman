@@ -104,99 +104,105 @@ void init_multicast_socket(Partie *partie) {
 }
 
 void *handle_client(void *arg) {
-  int client_socket = *(int *)arg;
+    int client_socket = *(int *)arg;
 
-  EnteteMessage received_message;
-  memset(&received_message, 0, sizeof(EnteteMessage));
+    EnteteMessage received_message;
+    memset(&received_message, 0, sizeof(EnteteMessage));
 
-  // Réception du message depuis le client
-  if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
-    perror("La réception du message a échoué");
-    exit(EXIT_FAILURE);
-  }
+    // Réception du message depuis le client
+    if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
+        perror("La réception du message a échoué");
+        exit(EXIT_FAILURE);
+    }
 
-  int index_partie = join_or_create(
-      client_socket,
-      received_message.CODEREQ); // index_partie est l'index de la partie où le
-                                 // client a rejoint
+    int index_partie = join_or_create(
+    client_socket, received_message.CODEREQ); // index_partie est l'index de la partie où le client a rejoint
 
-  GameMessage client_ready;
-  memset(&client_ready, 0, sizeof(GameMessage));
+    GameMessage client_ready;
+    memset(&client_ready, 0, sizeof(GameMessage));
 
-  if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
-    perror("La réception du message a échoué");
-    exit(EXIT_FAILURE);
-  }
+    if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
+        perror("La réception du message a échoué");
+        exit(EXIT_FAILURE);
+    }
 
-  char buf[SIZE_MSG];
-  memset(buf, 0, sizeof(buf));
+    char buf[SIZE_MSG];
+    memset(buf, 0, sizeof(buf));
 
-  if (client_ready.EQ == -1) {
-    snprintf(buf, SIZE_MSG,
-             "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
-             "en mode : SOLO (1v3).",
-             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
-             index_partie);
-  } else {
-    snprintf(buf, SIZE_MSG,
-             "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
-             "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
-             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
-             client_ready.EQ, index_partie);
-  }
+    if (client_ready.EQ == -1) {
+        snprintf(buf, SIZE_MSG,
+        "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
+        "en mode : SOLO (1v3).",
+        id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+        index_partie);
+    } else {
+        snprintf(buf, SIZE_MSG,
+        "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
+        "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
+        id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+        client_ready.EQ, index_partie);
+    }
 
-  printf("%s\n", buf);
+    printf("%s\n", buf);
 
-  pthread_mutex_lock(&mutex_partie);
-  printf("Il reste %d places dans la partie n.%d %s\n",
-         MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
-         (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0)
-             ? "\n\033[31m\nNous sommes au complet, la partie peut commencer "
-               "!!\033[0m\n"
-             : "\n");
+    pthread_mutex_lock(&mutex_partie);
+    printf("Il reste %d places dans la partie n.%d %s\n",
+        MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
+        (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0)
+        ? "\n\033[31m\nNous sommes au complet, la partie peut commencer "
+        "!!\033[0m\n"
+        : "\n");
 
-  if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
-    pthread_mutex_unlock(&mutex_partie);
-    printf("\033[90mLa partie n.%d va commencer dans 3 secondes.\033[0m\n",
-           index_partie);
+    if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
+        pthread_mutex_unlock(&mutex_partie);
+        printf("\033[90mLa partie n.%d va commencer dans 3 secondes.\033[0m\n",
+        index_partie);
     for (int i = 0; i < 3; i++) {
-      printf("\033[90m%d\033[0m \n", 3 - i);
-      sleep(1);
+        printf("\033[90m%d\033[0m \n", 3 - i);
+        sleep(1);
     }
     puts("\033[90mGOOOOOOO\nLa partie commence !!\033[0m\n\n\n\n");
 
-      // Initialisation de la grille
-      GridData g;
-      memset(&g, 0, sizeof(GridData) - 1);
+    // Initialisation de la grille
+    GridData g;
+    memset(&g, 0, sizeof(GridData) - 1);
 
-      // Initialisation des joueurs
-      player *p = malloc(4 * sizeof(player *));
-      if (p == NULL) {
-          perror("Memory allocation error for 'p'");
-          exit(EXIT_FAILURE);
-      }
-      setup_grid(&g, 20, 51, p);
+    // Initialisation des joueurs
+    player *p = malloc(4 * sizeof(player *));
+    if (p == NULL) {
+        perror("Memory allocation error for 'p'");
+        exit(EXIT_FAILURE);
+    }
+    setup_grid(&g, 20, 51, p);
 
     // Envoie de la grille initiale
-    if (sendto(parties[index_partie].send_sock, &g, sizeof(GridData), 0,
-               (struct sockaddr *)&parties[index_partie].multicast_addr,
-               sizeof(parties[index_partie].multicast_addr)) < 0) {
-      perror("L'envoi de la grille a échoué");
-      exit(EXIT_FAILURE);
+    if (sendto(parties[index_partie].send_sock, &g, sizeof(GridData) - 1, 0,
+            (struct sockaddr *)&parties[index_partie].multicast_addr,
+            sizeof(parties[index_partie].multicast_addr)) < 0) {
+        perror("L'envoi de la grille a échoué");
+        exit(EXIT_FAILURE);
     }
 
     printf("La grille a été envoyée\n");
 
-    pthread_t thread_grid;
-    int *x = malloc(sizeof(int));
-    *x = nb_partie;
-    pthread_create(&thread_grid, NULL, game_comm, x);
-  } else {
-    pthread_mutex_unlock(&mutex_partie);
-  }
+    // Envoie des cases de la grille
+    if (sendto(parties[index_partie].send_sock, g.cases, g.hauteur * g.largeur * sizeof(ContenuCase) - 1, 0,
+               (struct sockaddr *)&parties[index_partie].multicast_addr,
+               sizeof(parties[index_partie].multicast_addr)) < 0) {
+        perror("L'envoi de la grille a échoué");
+        exit(EXIT_FAILURE);
+    }
 
-  free(arg);
-  return NULL;
+    //pthread_t thread_grid;
+    //int *x = malloc(sizeof(int));
+    //*x = nb_partie;
+    //pthread_create(&thread_grid, NULL, game_comm, x);
+    } else {
+    pthread_mutex_unlock(&mutex_partie);
+    }
+
+    free(arg);
+    return NULL;
 }
 
 int check_maj(GridData *grid_handler, Partie partie) {

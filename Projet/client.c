@@ -220,29 +220,39 @@ void *handle_game(void *arg) {
 }
 
 void first_grid() {
-  GridData grid;
-  memset(&grid, 0, sizeof(GridData) - 1);
+    GridData grid;
+    memset(&grid, 0, sizeof(GridData) - 1);
 
-  if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0, (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
+    if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0, (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
         perror("echec de read");
-  }
+    }
 
-  printf("Réception du Grid : longueur %d , largeur %d \n", grid.hauteur, grid.largeur);
+    printf("Réception du Grid : longueur %d , largeur %d \n", grid.hauteur, grid.largeur);
 
-  GameMessage me;
-  memset(&me, 0, sizeof(GameMessage));
-  me.CODEREQ = game_mode + 2;
-  me.ID = player_id;
-  me.EQ = (game_mode == 2) ? team_number : -1;
+    grid.cases = calloc(grid.hauteur * grid.largeur, sizeof(ContenuCase) - 1);
+    if (grid.cases == NULL) {
+        perror("Erreur d'allocation mémoire pour les cases de la grille");
+        exit(EXIT_FAILURE);
+    }
 
-  line l;
-  memset(&l, 0, sizeof(line) - 1);
-  l.cursor = 0;
+    if (recvfrom(udp_socket, grid.cases, grid.hauteur * grid.largeur * sizeof(ContenuCase) - 1, 0, (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
+        perror("echec de read");
+    }
 
-  print_grid(grid, me, l);
+    GameMessage me;
+    memset(&me, 0, sizeof(GameMessage));
+    me.CODEREQ = game_mode + 2;
+    me.ID = player_id;
+    me.EQ = (game_mode == 2) ? team_number : -1;
 
-  pthread_t thread_handle_client;
-  pthread_create(&thread_handle_client, NULL, handle_game, NULL);
+    line l;
+    memset(&l, 0, sizeof(line) - 1);
+    l.cursor = 0;
+
+    print_grid(grid, me, l);
+
+    //pthread_t thread_handle_client;
+    //pthread_create(&thread_handle_client, NULL, handle_game, NULL);
 }
 
 
