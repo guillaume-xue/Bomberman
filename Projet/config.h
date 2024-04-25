@@ -12,8 +12,9 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+#include <time.h>
 
-#define TCP_PORT 8080
+#define TCP_PORT 8082
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
 #define INTERVALLE_ENVOI 1
@@ -125,6 +126,11 @@ typedef struct {
   char DATA[SIZE_MSG];
 } TchatMessage;
 
+typedef struct data {
+  int index_partie;
+  int id;
+} data;
+
 typedef struct {
     char conv[TCHATBOX_HEIGHT - 3][TEXT_SIZE]; // Tableau de caractères pour la conversation
     int i;                // Indice pour suivre la conversation
@@ -149,5 +155,10 @@ typedef struct player {
   bomb *b;
   ACTION action;
 } player;
+
+typedef struct {
+    Partie *partie;
+    pos p;
+} ExplosionThreadArgs;
 
 #endif
