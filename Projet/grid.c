@@ -28,11 +28,11 @@ void refresh_game(board *b, line *l) {
         if (joueur_id == 1) {
           attron(COLOR_PAIR(1)); // Activer la couleur
           attron(A_BOLD);        // Activer le gras
-          mvaddch(y + 1, x + 1, '1');
+          mvaddch(y + 2, x + 1, '1');
           attroff(A_BOLD);        // Désactiver le gras
           attroff(COLOR_PAIR(1)); // Désactiver la couleur
         } else {
-          mvaddch(y + 1, x + 1, c); // Afficher le caractère normalement
+          mvaddch(y + 2, x + 1, c); // Afficher le caractère normalement
         }
         break;
 
@@ -40,11 +40,11 @@ void refresh_game(board *b, line *l) {
         if (joueur_id == 2) {
           attron(COLOR_PAIR(2));
           attron(A_BOLD);
-          mvaddch(y + 1, x + 1, '2');
+          mvaddch(y + 2, x + 1, '2');
           attroff(A_BOLD);
           attroff(COLOR_PAIR(2));
         } else {
-          mvaddch(y + 1, x + 1, c);
+          mvaddch(y + 2, x + 1, c);
         }
         break;
 
@@ -52,11 +52,11 @@ void refresh_game(board *b, line *l) {
         if (joueur_id == 3) {
           attron(COLOR_PAIR(3));
           attron(A_BOLD);
-          mvaddch(y + 1, x + 1, '3');
+          mvaddch(y + 2, x + 1, '3');
           attroff(A_BOLD);
           attroff(COLOR_PAIR(3));
         } else {
-          mvaddch(y + 1, x + 1, c);
+          mvaddch(y + 2, x + 1, c);
         }
         break;
 
@@ -64,32 +64,47 @@ void refresh_game(board *b, line *l) {
         if (joueur_id == 4) {
           attron(COLOR_PAIR(4));
           attron(A_BOLD);
-          mvaddch(y + 1, x + 1, '4');
+          mvaddch(y + 2, x + 1, '4');
           attroff(A_BOLD);
           attroff(COLOR_PAIR(4));
         } else {
-          mvaddch(y + 1, x + 1, c);
+          mvaddch(y + 2, x + 1, c);
         }
         break;
 
       default:
-        mvaddch(y + 1, x + 1, c);
+        mvaddch(y + 2, x + 1, c);
         break;
       }
     }
   }
+
+  char buf_player[TEXT_SIZE];
+  snprintf(buf_player, sizeof(buf_player), "Joueur %d", joueur_id);
+  size_t len_player = (FIELD_WIDTH / 2) - (strlen(buf_player) / 2);
+  for (int i = 1; i < len_player + 1; i++)
+    mvaddch(0, i, '-');
+  attron(COLOR_PAIR(joueur_id));
+  attron(A_BOLD);
+  mvprintw(0, len_player, buf_player);
+  attroff(A_BOLD);
+  attroff(COLOR_PAIR(joueur_id));
+  for (int i = len_player + strlen(buf_player); i < FIELD_WIDTH + 1; i++)
+    mvaddch(0, i, '-');
+  mvaddch(0, b->w + 2, '|');
+
   for (x = 0; x < b->w + 2; x++) {
-    mvaddch(0, x, '-');
-    mvaddch(b->h + 1, x, '-');
+    mvaddch(1, x, '-');
+    mvaddch(b->h + 2, x, '-');
   }
   for (y = 0; y < b->h + 2; y++) {
     mvaddch(y, 0, '|');
-    mvaddch(y, b->w + 1, '|');
+    mvaddch(y + 1, b->w + 1, '|');
   }
 
   // ---------------------TCHATBOX---------------------
   // ------TCHATBOX---------------
-  int nh = b->h + 2; // new height
+  int nh = b->h + 3; // new height
   size_t len_tb = (FIELD_WIDTH / 2) - (strlen("TCHATBOX") / 2);
   for (int i = 1; i < len_tb + 1; i++)
     mvaddch(nh, i, '-');
@@ -105,11 +120,12 @@ void refresh_game(board *b, line *l) {
 
   attron(COLOR_PAIR(5)); // Enable custom color 5
   attron(A_BOLD);        // Enable bold
-  for (int i = 1; i < FIELD_WIDTH + 4; i++) mvaddch(height_tb - 1, i, ' ');
+  for (int i = 1; i < FIELD_WIDTH + 4; i++)
+    mvaddch(height_tb - 1, i, ' ');
   mvprintw(height_tb - 1, 1, notif);
   attroff(A_BOLD);        // Disable bold
   attroff(COLOR_PAIR(5)); // Disable custom color 5
-  
+
   for (y = nh; y < height_tb; y++) {
     mvaddch(y, 0, '|');
     mvaddch(y, b->w + 1, '|');
@@ -141,7 +157,8 @@ void refresh_game(board *b, line *l) {
   mvprintw(height_tb + 5, 2, "-'@': tout effacer.");
   mvprintw(height_tb + 6, 2, "-'~': quitter.");
   mvprintw(height_tb + 7, 2, "-'7': send everyone.");
-  if (joueur_mode == 2) mvprintw(height_tb + 8, 2, "-'8': send teammate.");
+  if (joueur_mode == 2)
+    mvprintw(height_tb + 8, 2, "-'8': send teammate.");
   // ---------------------INPUT---------------------
 
   refresh(); // Apply the changes to the terminal

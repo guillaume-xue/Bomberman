@@ -65,6 +65,8 @@ void choose_game_mode() {
     }
   }
 
+  clear_term();
+
   EnteteMessage request;
   memset(&request, 0, sizeof(EnteteMessage));
   request.CODEREQ = game_mode;
@@ -74,7 +76,6 @@ void choose_game_mode() {
     exit(EXIT_FAILURE);
 
   }
-  clear_term();
 }
 
 void suscribe_multicast() {
@@ -286,3 +287,18 @@ int main() {
 
   launch_game();
 }
+
+
+// |---------------------||---------------------||---------------------||---------------------|
+// |     Partie n.X      ||     Partie n.X      ||     Partie n.X      ||     Partie n.X      |
+// |---------------------||---------------------||---------------------||---------------------|
+// |      En cours       ||      En cours       ||      En cours       ||      En cours       |
+// |---------------------||---------------------||---------------------||---------------------|
+// |   Joueurs présent:  ||   Joueurs présent:  ||   Joueurs présent:  ||   Joueurs présent:  |
+// |                     ||                     ||                     ||                     |
+// |      joueur 1       ||      joueur 1       ||      joueur 1       ||      joueur 1       |
+// |      joueur 2       ||      joueur 2       ||      joueur 2       ||      joueur 2       |
+// |      joueur 3       ||      joueur 3       ||      joueur 3       ||      joueur 3       |
+// |      joueur 4       ||      joueur 4       ||      joueur 4       ||      joueur 4       |
+// |                     ||                     ||                     ||                     |
+// |---------------------||---------------------||---------------------||---------------------|
