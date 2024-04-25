@@ -138,8 +138,7 @@ bool perform_action(board* b, pos* p, ACTION a) {
             return true;
         default: break;
     }
-    p->x += xd; 
-    p->y += yd;
+    p->x += xd; p->y += yd;
     p->x = (p->x + b->w)%b->w;
     p->y = (p->y + b->h)%b->h;
     set_grid(b,p->x,p->y,1);
