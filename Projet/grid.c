@@ -71,6 +71,20 @@ void refresh_game(board *b, line *l) {
           mvaddch(y + 2, x + 1, c);
         }
         break;
+      case 'B':
+          attron(COLOR_PAIR(4)); 
+          attron(A_BOLD);        
+          mvaddch(y + 2, x + 1, 'B');
+          attroff(A_BOLD);        
+          attroff(COLOR_PAIR(4)); 
+          break;
+      case 'E':
+          attron(COLOR_PAIR(5));
+          attron(A_BOLD);        
+          mvaddch(y + 2, x + 1, 'E');
+          attroff(A_BOLD);       
+          attroff(COLOR_PAIR(5)); 
+          break;
 
       default:
         mvaddch(y + 2, x + 1, c);
@@ -200,6 +214,9 @@ ACTION control(line *l) {
   case '~':
     a = QUIT;
     break;
+  case 'b':
+    a = BOMB;
+    break;
   case KEY_BACKSPACE:
     if (l->cursor > 0)
       l->cursor--;
@@ -231,9 +248,18 @@ ACTION control(line *l) {
   return a;
 }
 
+bool is_empty_case(board *b, int x, int y) {
+    return get_grid(b, x, y) == CASE_VIDE;
+}
+
+
 bool perform_action(board *b, pos *p, ACTION a) {
   int xd = 0;
   int yd = 0;
+
+  int prev_x = p->x;
+  int prev_y = p->y;
+
   switch (a) {
   case LEFT:
     xd = -1;
@@ -256,11 +282,20 @@ bool perform_action(board *b, pos *p, ACTION a) {
   default:
     break;
   }
-  p->x += xd;
-  p->y += yd;
-  p->x = (p->x + b->w) % b->w;
-  p->y = (p->y + b->h) % b->h;
-  set_grid(b, p->x, p->y, 1);
+
+  // Calcul des nouvelles coordonnées du joueur
+  int new_x = (prev_x + xd + b->w) % b->w;
+  int new_y = (prev_y + yd + b->h) % b->h;
+
+  // Vérifier si la nouvelle case est vide
+  if (get_grid(b, new_x, new_y) == CASE_VIDE) {
+    p->x = new_x;
+    p->y = new_y;
+    
+    set_grid(b, prev_x, prev_y, CASE_VIDE);
+    set_grid(b, p->x, p->y, joueur_id);
+  }
+
   return false;
 }
 
@@ -277,9 +312,9 @@ char get_grid_char(GridData gridData, int i, int j) {
   case CASE_VIDE:
     return ' ';
   case MUR_INDESTRUCTIBLE:
-    return '#';
-  case MUR_DESTRUCTIBLE:
-    return 'X';
+        return '|'; 
+    case MUR_DESTRUCTIBLE:
+        return 'x';
   case BOMBE:
     return 'B';
   case EXPLOSION:
