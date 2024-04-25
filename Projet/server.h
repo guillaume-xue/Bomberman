@@ -4,6 +4,9 @@
 #include "config.h"
 #include "func.h"
 
+#define BOMB_TIMER 2
+#define EXPLOSION_RADIUS 1
+
 void init_mutex();
 void add_player(Partie *partie, int client_socket);
 void add_partie(int client_socket, int mode_jeu);
