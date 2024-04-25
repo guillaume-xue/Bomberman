@@ -15,6 +15,9 @@ struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 struct sockaddr_in6 diffuseur_addr; // adresse de la partie en UDP
 socklen_t difflen = sizeof(diffuseur_addr);
 
+line *l;
+GridData game_grid;
+
 void receive_gmsg(int client_socket) {
   GameMessage received_message;
   memset(&received_message, 0, sizeof(GameMessage));
@@ -73,6 +76,7 @@ void choose_game_mode() {
   if (send(tcp_socket, &request, sizeof(EnteteMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
+
   }
 }
 
@@ -173,105 +177,106 @@ void im_ready() {
            "\033[0m");
   else
     printf("Mode de jeu : EQUIPE.\nJe suis %sJoueur %d%s dans l'équipe %d.\n",
-           color, player_id, "\033[0m", team_number); 
+           color, player_id, "\033[0m", team_number);
 }
 
-void grid_communication() {
-  GridData grid;
+void *receive_grid(void *arg) {
   while (1) {
-    memset(&grid, 0, sizeof(GridData));
-    if (recvfrom(udp_socket, &grid, sizeof(GridData) - 1, 0,
-                 (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
-      perror("echec de read");
+    if (recv(udp_socket, &game_grid, sizeof(GridData), 0) < 0) {
+      perror("La réception de la grille a échoué");
+      exit(EXIT_FAILURE);
     }
-
-    // print_grid(me, &grid);
   }
 }
- 
 
 // A faire dans le switch, afin de savoir si on envoie en TCP ou en UDP
 void *receive_tchat(void *arg) {
-  char message[SIZE_MSG];
+  TchatMessage tchat_message;
   while (1) {
-    memset(message, 0, SIZE_MSG);
-    if (recv(tcp_socket, message, SIZE_MSG, 0) < 0) {
+    if (recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0) < 0) {
       perror("La réception du message a échoué");
       exit(EXIT_FAILURE);
     }
-
-    printf("\033[1;32m%s\033[0m\n", message);
-  }
-}
-
-void *send_tchat(void *arg) {
-  char instruction[SIZE_MSG];
-  sprintf(instruction, "Veuillez choisir un mode : 1 or 2\n"
-                       "      1. Message à tout le monde.\n"
-                       "      2. Message à votre partenaire.\n\n"
-                       "Mon choix est : ");
-  printf("%s", instruction);
-
-  char buf[SIZE_MSG];
-  while (1) {
-    memset(buf, 0, SIZE_MSG);
-
-    scanf("%s", buf);
-
-    if (atoi(buf) == 1 || atoi(buf) == 2) {
-      int choice = atoi(buf);
-      char message[SIZE_MSG];
-      printf("Entrez votre message : ");
-      scanf("%s", message);
-
-      TchatMessage tchat_message;
-      memset(&tchat_message, 0, sizeof(TchatMessage));
-      tchat_message.entete.CODEREQ = htons(choice + 6);
-      tchat_message.entete.ID = htons(player_id);
-      tchat_message.entete.EQ = (game_mode == 2) ? team_number : -1;
-      tchat_message.LEN = strlen(message);
-      strcpy(tchat_message.DATA, message);
-
-      if (send(tcp_socket, &tchat_message, sizeof(TchatMessage), 0) < 0) {
-        perror("L'envoi du message a échoué");
-        exit(EXIT_FAILURE);
+    
+    // On ajoute le message reçu à la conversation
+    if (l->tchatbox.nb_lines == TCHATBOX_HEIGHT - 3) {
+      for (int i = 0; i < TCHATBOX_HEIGHT - 3; i++) {
+        strcpy(l->tchatbox.conv[i], l->tchatbox.conv[i + 1]);
       }
+      snprintf(l->tchatbox.conv[TCHATBOX_HEIGHT - 4], TEXT_SIZE, "%d : %s", tchat_message.entete.ID, tchat_message.DATA + 1);
     } else {
-      puts("\n\n\033[31mVeuillez choisir 1 (Message à tout le monde) ou 2 "
-           "(Message à partenaire)\033[0m\n");
-      printf("%s", instruction);
+      snprintf(l->tchatbox.conv[l->tchatbox.i], TEXT_SIZE, "%d : %s", tchat_message.entete.ID, tchat_message.DATA + 1);
+      l->tchatbox.i++;
+      l->tchatbox.nb_lines++;
+      eraser(l);
     }
   }
 }
 
-void send_recv_tchat() {
-  pthread_t thread_recv_tchat;
-  pthread_t thread_send_tchat;
+void launch_game() {
+  memset(&game_grid, 0, sizeof(GridData));
 
+  if (recvfrom(udp_socket, &game_grid, sizeof(GridData), 0,
+               (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
+    perror("La réception de la grille a échoué");
+    exit(EXIT_FAILURE);
+  }
+
+  l = init_grid(game_grid, player_id, game_mode);
+
+  pthread_t thread_recv_grid;
+  if (pthread_create(&thread_recv_grid, NULL, receive_grid, NULL) != 0) {
+    perror(
+        "Erreur lors de la création du thread pour la réception de la grille");
+    exit(EXIT_FAILURE);
+  }
+
+  pthread_t thread_recv_tchat;
   if (pthread_create(&thread_recv_tchat, NULL, receive_tchat, NULL) != 0) {
     perror("Erreur lors de la création du thread pour la réception du tchat");
     exit(EXIT_FAILURE);
   }
 
-  if (pthread_create(&thread_send_tchat, NULL, send_tchat, NULL) != 0) {
-    perror("Erreur lors de la création du thread pour l'envoi du tchat");
-    exit(EXIT_FAILURE);
+  GameMessage my_action;
+  TchatMessage my_msg;
+  while (1) {
+    ACTION a = control(l);
+    if (a != NONE) {
+      if (a == QUIT) {
+        break;
+      } else if (a == SUBMIT) {
+        memset(&my_msg, 0, sizeof(TchatMessage));
+        my_msg.entete.CODEREQ = atoi(&l->data[0]);
+        my_msg.entete.ID = player_id;
+        my_msg.entete.EQ = (game_mode == 2) ? team_number : -1;
+        my_msg.LEN = strlen(l->data);
+        strcpy(my_msg.DATA, l->data);
+
+        if (send(tcp_socket, &my_msg, sizeof(TchatMessage), 0) < 0) {
+          perror("L'envoi du message a échoué");
+          exit(EXIT_FAILURE);
+        }
+      } else {
+        memset(&my_action, 0, sizeof(GameMessage));
+        my_action.CODEREQ = game_mode + 4;
+        my_action.ID = player_id;
+        my_action.EQ = (game_mode == 2) ? team_number : -1;
+        my_action.ACTION = a;
+
+        if (sendto(udp_socket, &my_action, sizeof(GameMessage), 0,
+                   (struct sockaddr *)&diffuseur_addr, difflen) < 0) {
+          perror("L'envoi de l'action a échoué");
+          exit(EXIT_FAILURE);
+        }
+      }
+    }
+    usleep(10000); // 10ms
+
+    print_grid(game_grid, l);
   }
+
+  clear_grid();
 }
-
-void launch_game() {
-  GridData first_grid;
-  memset(&first_grid, 0, sizeof(GridData));
-
-  if (recv(udp_socket, &first_grid, sizeof(GridData), 0) < 0) {
-    perror("La réception de la première grille a échoué");
-    exit(EXIT_FAILURE);
-  }
-
-  init_grid(first_grid, player_id);
-
-  // grid_communication();
- }
 
 int main() {
   connexion_to_tcp_server();
@@ -284,3 +289,18 @@ int main() {
 
   launch_game();
 }
+
+
+// |---------------------||---------------------||---------------------||---------------------|
+// |     Partie n.X      ||     Partie n.X      ||     Partie n.X      ||     Partie n.X      |
+// |---------------------||---------------------||---------------------||---------------------|
+// |      En cours       ||      En cours       ||      En cours       ||      En cours       |
+// |---------------------||---------------------||---------------------||---------------------|
+// |   Joueurs présent:  ||   Joueurs présent:  ||   Joueurs présent:  ||   Joueurs présent:  |
+// |                     ||                     ||                     ||                     |
+// |      joueur 1       ||      joueur 1       ||      joueur 1       ||      joueur 1       |
+// |      joueur 2       ||      joueur 2       ||      joueur 2       ||      joueur 2       |
+// |      joueur 3       ||      joueur 3       ||      joueur 3       ||      joueur 3       |
+// |      joueur 4       ||      joueur 4       ||      joueur 4       ||      joueur 4       |
+// |                     ||                     ||                     ||                     |
+// |---------------------||---------------------||---------------------||---------------------|
