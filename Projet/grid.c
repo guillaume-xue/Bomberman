@@ -78,10 +78,10 @@ void refresh_game(board *b, line *l) {
           attroff(A_BOLD);        
           attroff(COLOR_PAIR(4)); 
           break;
-      case 'E':
+      case '*':
           attron(COLOR_PAIR(5));
           attron(A_BOLD);        
-          mvaddch(y + 2, x + 1, 'E');
+          mvaddch(y + 2, x + 1, '*');
           attroff(A_BOLD);       
           attroff(COLOR_PAIR(5)); 
           break;
@@ -318,7 +318,7 @@ char get_grid_char(GridData gridData, int i, int j) {
   case BOMBE:
     return 'B';
   case EXPLOSION:
-    return 'E';
+    return '*';
   case J0:
     return '1';
   case J1:

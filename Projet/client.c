@@ -5,8 +5,8 @@ int player_id; // id du joueur
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
-int game_mode;
-
+int game_mode = false;
+bool game_over;
 GridData game_grid;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
@@ -14,6 +14,8 @@ struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 
 struct sockaddr_in6 diffuseur_addr; // adresse de la partie en UDP
 socklen_t difflen = sizeof(diffuseur_addr);
+
+pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
 
 line *l;
 GridData game_grid;
@@ -187,6 +189,8 @@ void *receive_grid(void *arg) {
       exit(EXIT_FAILURE);
     }
   }
+
+  return NULL;
 }
 
 // A faire dans le switch, afin de savoir si on envoie en TCP ou en UDP
@@ -239,7 +243,7 @@ void launch_game() {
 
   GameMessage my_action;
   TchatMessage my_msg;
-  while (1) {
+  while (!game_over) {
     ACTION a = control(l);
     if (a != NONE) {
       if (a == QUIT) {
@@ -278,6 +282,30 @@ void launch_game() {
   clear_grid();
 }
 
+
+void *attente_fin(void *args) {
+    int *tcp_socket = (int *)args;
+
+    GameMessage defaite;
+    while (1) {
+        // Attendre la réception d'un message de défaite
+        if (recv(*tcp_socket, &defaite, sizeof(GameMessage), 0) < 0) {
+            perror("La réception du message de défaite a échoué");
+            exit(EXIT_FAILURE);
+        }
+        
+        if(defaite.CODEREQ == 20){
+          pthread_mutex_lock(&mutex_partie);
+          game_over = true;
+          pthread_mutex_unlock(&mutex_partie);
+          break;
+        }
+        
+    }
+    return NULL;
+}
+
+
 int main() {
   connexion_to_tcp_server();
 
@@ -288,6 +316,16 @@ int main() {
   im_ready(); // dernière étape avant de commencer la partie
 
   launch_game();
+
+  // Gestion fin de partie 
+  pthread_t thread_attente_fin;
+  if (pthread_create(&thread_attente_fin, NULL, attente_fin, &tcp_socket) != 0) {
+        perror("Erreur lors de la création du thread d'attente de la fin");
+        exit(EXIT_FAILURE);
+  }
+
+   pthread_join(thread_attente_fin, NULL);
+
 }
 
 
