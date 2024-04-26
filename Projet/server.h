@@ -4,7 +4,7 @@
 #include "config.h"
 #include "func.h"
 
-#define BOMB_TIMER 2
+#define BOMB_TIMER 5
 #define EXPLOSION_RADIUS 1
 
 void init_mutex();
