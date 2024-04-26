@@ -282,7 +282,7 @@ void launch_game() {
   clear_grid();
 }
 
-
+// Fin 
 void *attente_fin(void *args) {
     int *tcp_socket = (int *)args;
 
@@ -294,13 +294,22 @@ void *attente_fin(void *args) {
             exit(EXIT_FAILURE);
         }
         
-        if(defaite.CODEREQ == 20){
+        if(defaite.CODEREQ == 20 && defaite.ID == player_id){
           pthread_mutex_lock(&mutex_partie);
           game_over = true;
           pthread_mutex_unlock(&mutex_partie);
-          break;
+
+          // désabonner
+           if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &diffuseur_addr, difflen) < 0) {
+              perror("Erreur lors du désabonnement du groupe multicast");
+              exit(EXIT_FAILURE);
+          }
+          endwin();
+          printf(" Fin de partie pour le joueur %d \n", player_id);
+
+          exit(EXIT_SUCCESS);
+          //break;
         }
-        
     }
     return NULL;
 }
@@ -323,8 +332,6 @@ int main() {
         perror("Erreur lors de la création du thread d'attente de la fin");
         exit(EXIT_FAILURE);
   }
-
-   pthread_join(thread_attente_fin, NULL);
 
 }
 
