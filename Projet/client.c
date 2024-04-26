@@ -4,7 +4,7 @@
 int player_id; // id du joueur
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
-char *color;
+char* color;
 int game_mode = false;
 bool game_over;
 GridData game_grid;
@@ -18,7 +18,6 @@ socklen_t difflen = sizeof(diffuseur_addr);
 pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
 
 line *l;
-GridData game_grid;
 
 void receive_gmsg(int client_socket) {
   GameMessage received_message;
@@ -70,7 +69,6 @@ void choose_game_mode() {
   }
 
   clear_term();
-
   EnteteMessage request;
   memset(&request, 0, sizeof(EnteteMessage));
   request.CODEREQ = game_mode;
@@ -78,7 +76,6 @@ void choose_game_mode() {
   if (send(tcp_socket, &request, sizeof(EnteteMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
-
   }
 }
 
@@ -182,6 +179,15 @@ void im_ready() {
            color, player_id, "\033[0m", team_number);
 }
 
+// Fin 
+
+void* attente_fin(void *args) {
+    while (1) {    
+      //game_over = check_end(game_grid);
+    }
+    return NULL;
+}
+
 void *receive_grid(void *arg) {
   while (1) {
     if (recv(udp_socket, &game_grid, sizeof(GridData), 0) < 0) {
@@ -227,7 +233,7 @@ void launch_game() {
   }
 
   l = init_grid(game_grid, player_id, game_mode);
-
+  
   pthread_t thread_recv_grid;
   if (pthread_create(&thread_recv_grid, NULL, receive_grid, NULL) != 0) {
     perror(
@@ -239,6 +245,12 @@ void launch_game() {
   if (pthread_create(&thread_recv_tchat, NULL, receive_tchat, NULL) != 0) {
     perror("Erreur lors de la création du thread pour la réception du tchat");
     exit(EXIT_FAILURE);
+  }
+
+  pthread_t thread_attente_fin;
+  if (pthread_create(&thread_attente_fin, NULL, attente_fin, NULL) != 0) {
+      perror("Erreur lors de la création du thread d'attente de la fin");
+      exit(EXIT_FAILURE);
   }
 
   GameMessage my_action;
@@ -282,39 +294,6 @@ void launch_game() {
   clear_grid();
 }
 
-// Fin 
-void *attente_fin(void *args) {
-    int *tcp_socket = (int *)args;
-
-    GameMessage defaite;
-    while (1) {
-        // Attendre la réception d'un message de défaite
-        if (recv(*tcp_socket, &defaite, sizeof(GameMessage), 0) < 0) {
-            perror("La réception du message de défaite a échoué");
-            exit(EXIT_FAILURE);
-        }
-        
-        if(defaite.CODEREQ == 20 && defaite.ID == player_id){
-          pthread_mutex_lock(&mutex_partie);
-          game_over = true;
-          pthread_mutex_unlock(&mutex_partie);
-
-          // désabonner
-           if (setsockopt(udp_socket, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &diffuseur_addr, difflen) < 0) {
-              perror("Erreur lors du désabonnement du groupe multicast");
-              exit(EXIT_FAILURE);
-          }
-          endwin();
-          printf(" Fin de partie pour le joueur %d \n", player_id);
-
-          exit(EXIT_SUCCESS);
-          //break;
-        }
-    }
-    return NULL;
-}
-
-
 int main() {
   connexion_to_tcp_server();
 
@@ -327,12 +306,6 @@ int main() {
   launch_game();
 
   // Gestion fin de partie 
-  pthread_t thread_attente_fin;
-  if (pthread_create(&thread_attente_fin, NULL, attente_fin, &tcp_socket) != 0) {
-        perror("Erreur lors de la création du thread d'attente de la fin");
-        exit(EXIT_FAILURE);
-  }
-
 }
 
 
