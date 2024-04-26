@@ -72,11 +72,11 @@ void refresh_game(board *b, line *l) {
         }
         break;
       case 'B':
-          attron(COLOR_PAIR(4)); 
+          attron(COLOR_PAIR(5)); 
           attron(A_BOLD);        
           mvaddch(y + 2, x + 1, 'B');
           attroff(A_BOLD);        
-          attroff(COLOR_PAIR(4)); 
+          attroff(COLOR_PAIR(5)); 
           break;
       case '*':
           attron(COLOR_PAIR(5));
@@ -248,56 +248,6 @@ ACTION control(line *l) {
   return a;
 }
 
-bool is_empty_case(board *b, int x, int y) {
-    return get_grid(b, x, y) == CASE_VIDE;
-}
-
-
-bool perform_action(board *b, pos *p, ACTION a) {
-  int xd = 0;
-  int yd = 0;
-
-  int prev_x = p->x;
-  int prev_y = p->y;
-
-  switch (a) {
-  case LEFT:
-    xd = -1;
-    yd = 0;
-    break;
-  case RIGHT:
-    xd = 1;
-    yd = 0;
-    break;
-  case UP:
-    xd = 0;
-    yd = -1;
-    break;
-  case DOWN:
-    xd = 0;
-    yd = 1;
-    break;
-  case QUIT:
-    return true;
-  default:
-    break;
-  }
-
-  // Calcul des nouvelles coordonnées du joueur
-  int new_x = (prev_x + xd + b->w) % b->w;
-  int new_y = (prev_y + yd + b->h) % b->h;
-
-  // Vérifier si la nouvelle case est vide
-  if (get_grid(b, new_x, new_y) == CASE_VIDE) {
-    p->x = new_x;
-    p->y = new_y;
-    
-    set_grid(b, prev_x, prev_y, CASE_VIDE);
-    set_grid(b, p->x, p->y, joueur_id);
-  }
-
-  return false;
-}
 
 int print_grid(GridData gridData, line *l) {
   board *b = grid_to_board(gridData);
@@ -376,6 +326,21 @@ pos *init_position(GridData gridData) {
   }
 
   return p;
+}
+
+bool check_end(GridData gridData){
+  for (int i = 0; i < FIELD_WIDTH; i++) {
+        for (int j = 0; j < FIELD_HEIGHT; j++) {
+            char c = get_grid_char(gridData, i, j);
+            if ((joueur_id == 1 && c == '1') ||
+                (joueur_id == 2 && c == '2') ||
+                (joueur_id == 3 && c == '3') ||
+                (joueur_id == 4 && c == '4')) {
+                return false; // Le joueur est présent sur le terrain
+            }
+        }
+    }
+    return true; // Le joueur n'est pas présent sur le terrain
 }
 
 int clear_grid() {

@@ -21,5 +21,5 @@ ACTION control(line *l);
 board *grid_to_board(GridData gridData);
 int clear_grid();
 void eraser(line *l);
-
+bool check_end(GridData gridData);
 #endif
