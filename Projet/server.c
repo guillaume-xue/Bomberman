@@ -137,6 +137,7 @@ void *handle_tchat_clientX(void *arg) {
       }
     }
   }
+  free(arg);
 }
 
 // Partie incomplete puisque il faut 4 threads pour les 4 joueurs
@@ -304,6 +305,7 @@ typedef struct {
     int joueur_id;
 } SendExplosionMessageArgs;
 
+
 // Fonction pour le thread d'envoi de message d'explosion
 void *send_explosion_message_thread(void *args) {
     SendExplosionMessageArgs *send_args = (SendExplosionMessageArgs *)args;
@@ -311,34 +313,30 @@ void *send_explosion_message_thread(void *args) {
     int joueur_id = send_args->joueur_id;
 
     // Envoi du message d'explosion au client concerné
-    GameMessage explosion_message;
+    GameMessage explosion_message = {0};
     explosion_message.CODEREQ = 20; 
     explosion_message.ID = joueur_id; 
     explosion_message.EQ = -1; 
-    
-    if (send(partie->clients_socket_tcp[joueur_id], &explosion_message, sizeof(GameMessage), 0) < 0) {
-        perror("L'envoi du message d'explosion a échoué");
-        exit(EXIT_FAILURE);
-    }
-
-    // Libération de la mémoire des arguments
+     
+    // Peut être plus simple ... 
+        if (send(partie->clients_socket_tcp[joueur_id], &explosion_message, sizeof(GameMessage), 0) <
+            0) {
+           perror("L'envoi du message d'explosion a échoué");
+        }
     free(send_args);
-
-    // Terminaison du thread
     pthread_exit(NULL);
 }
-bool is_player_hit(int x, int y, pos p) {
-    int min_x = p.x - EXPLOSION_RADIUS;
-    int max_x = p.x + EXPLOSION_RADIUS;
-    int min_y = p.y - EXPLOSION_RADIUS;
-    int max_y = p.y + EXPLOSION_RADIUS;
-    
-    if (x >= min_x && x <= max_x &&
-       y >= min_y && y <= max_y) {
-        return true;
-    }
-    
-    return false;
+
+int gestion(ContenuCase x){
+  int c=0;
+  switch(x){
+    case J0 : c = 0;break;
+    case J1 : c = 1;break;
+    case J2 : c = 2;break;
+    case J3 : c = 3;break;
+    default : c = 5;
+  }
+  return c;
 }
 
 // Fonction de thread pour gérer l'explosion de la bombe
@@ -347,48 +345,66 @@ void *explosion_thread(void *args) {
     Partie *partie = exp_args->partie;
     pos p = exp_args->p;
     
+    // Gérer la mort possible des joueurs 
+    pthread_t threads[MAX_CLIENTS];
+    int thread_count = 0;
     sleep(BOMB_TIMER);
     
     for (int i = -EXPLOSION_RADIUS; i <= EXPLOSION_RADIUS; i++) {
         for (int j = -EXPLOSION_RADIUS; j <= EXPLOSION_RADIUS; j++) {
             int x = p.x + i;
             int y = p.y + j;
-            if (x >= 0 && x < FIELD_WIDTH && y >= 0 && y < FIELD_HEIGHT) {
+            if (x >= 0 && x < FIELD_WIDTH && y >= 0 && y < FIELD_HEIGHT && partie->grid.cases[x][y] != MUR_INDESTRUCTIBLE ) {
+                if(partie->grid.cases[x][y] == J0 || partie->grid.cases[x][y] == J1 || partie->grid.cases[x][y] == J2 || partie->grid.cases[x][y] == J3){
+                    //printf("TOUCHÉÉ !!! %d\n",partie->grid.cases[x][y]);
+                    //printf("player_id : %d \n", player_id);
+                    
+                    int player_id = partie->grid.cases[x][y] - J0;
+                    // (par exemple, définir sa position en dehors du terrain de jeu)
+                    partie->players_pos[player_id].x = -2;
+                    partie->players_pos[player_id].y = -2;
+
+                    SendExplosionMessageArgs *send_args = malloc(sizeof(SendExplosionMessageArgs));
+                    if (send_args == NULL) {
+                        perror("Allocation de mémoire pour les arguments du thread d'envoi de message d'explosion");
+                        exit(EXIT_FAILURE);
+                    }
+                    send_args->partie = partie;
+                    // gestion de l'id 
+                    
+                    send_args->joueur_id = gestion(partie->grid.cases[x][y]);
+                    //printf(" JID : %d \n",send_args->joueur_id);
+
+                    int res = pthread_create(&threads[thread_count], NULL, send_explosion_message_thread, (void *)send_args);
+                    if (res != 0) {   
+                        perror("Création du thread d'envoi de message d'explosion");
+                        free(send_args);
+                        exit(EXIT_FAILURE);
+                    }
+                    thread_count++;
+                }
                 partie->grid.cases[x][y] = EXPLOSION;
             }
         }
     }
     
-   
-    // détecter si un joueur est touché par l'explosion
-    pthread_t threads[MAX_CLIENTS];
-    int thread_count = 0;
-    for (int i = 0; i < partie->nb_joueurs; i++) {
-    int player_x = partie->players_pos[i].x;
-    int player_y = partie->players_pos[i].y;
-    if (is_player_hit(player_x, player_y, p)) {  
-            SendExplosionMessageArgs *send_args = malloc(sizeof(SendExplosionMessageArgs));
-            if (send_args == NULL) {
-                perror("Allocation de mémoire pour les arguments du thread d'envoi de message d'explosion");
-                exit(EXIT_FAILURE);
-            }
-            send_args->partie = partie;
-            send_args->joueur_id = i;
+    sleep(2);
 
-            int res = pthread_create(&threads[thread_count], NULL, send_explosion_message_thread, (void *)send_args);
-            if (res != 0) {
-                perror("Création du thread d'envoi de message d'explosion");
-                free(send_args);
-                exit(EXIT_FAILURE);
+    for (int i = -EXPLOSION_RADIUS; i <= EXPLOSION_RADIUS; i++) {
+        for (int j = -EXPLOSION_RADIUS; j <= EXPLOSION_RADIUS; j++) {
+            int x = p.x + i;
+            int y = p.y + j;
+            if (x >= 0 && x < FIELD_WIDTH && y >= 0 && y < FIELD_HEIGHT) {
+                if (partie->grid.cases[x][y] == EXPLOSION) {
+                    partie->grid.cases[x][y] = CASE_VIDE;
+                }
             }
-            thread_count++;
-    }
+        }
     }
     
     // Libérer la mémoire des arguments du thread
     free(exp_args);
     
-    // Terminer le thread
     pthread_exit(NULL);
 }
 
@@ -403,7 +419,6 @@ int place_bomb(Partie *partie, pos p) {
     pthread_t thread;
     pthread_create(&thread, NULL, explosion_thread, exp_args);
     
-    // Détacher le thread pour éviter les fuites de ressources
     pthread_detach(thread);
     
     return 0;
@@ -451,7 +466,8 @@ int check_maj(GameMessage *game_message, Partie *partie) {
             partie->grid.cases[p.x][p.y] = CASE_VIDE;
             partie->grid.cases[p.x - 1][p.y] = id + 5;
         }
-        break;
+        break;// détecter si un joueur est touché par l'explosion
+    
     case RIGHT:
         if (p.x + 1 >= FIELD_WIDTH || partie->grid.cases[p.x + 1][p.y] == MUR_INDESTRUCTIBLE || partie->grid.cases[p.x + 1][p.y] == BOMBE || partie->grid.cases[p.x + 1][p.y] == J0 || partie->grid.cases[p.x + 1][p.y] == J1 || partie->grid.cases[p.x + 1][p.y] == J2 || partie->grid.cases[p.x + 1][p.y] == J3)
             return -1;
