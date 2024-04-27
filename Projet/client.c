@@ -183,7 +183,8 @@ void im_ready() {
 
 void* attente_fin(void *args) {
     while (1) {    
-      //game_over = check_end(game_grid);
+      //printf(" FIN %d\n",player_id);
+      game_over = check_end(game_grid);
     }
     return NULL;
 }

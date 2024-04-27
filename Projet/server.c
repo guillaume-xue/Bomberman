@@ -308,9 +308,9 @@ void *explosion_thread(void *args) {
     
     // Gérer la mort possible des joueurs , autre idée en cour 
     //pthread_t threads[MAX_CLIENTS];
-    int thread_count = -1;
+    int thread_count = -4;
     sleep(BOMB_TIMER);
-    
+ 
     for (int i = -EXPLOSION_RADIUS; i <= EXPLOSION_RADIUS; i++) {
         for (int j = -EXPLOSION_RADIUS; j <= EXPLOSION_RADIUS; j++) {
             int x = p.x + i;
@@ -354,7 +354,30 @@ void *explosion_thread(void *args) {
 
 
 int place_bomb(Partie *partie, pos p) {
+    ContenuCase x = partie->grid.cases[p.x][p.y];
+
     partie->grid.cases[p.x][p.y] = BOMBE;
+    
+    
+    // Vérifier vers le haut
+    if (p.y - 1 >= 0 && partie->grid.cases[p.x][p.y - 1] == CASE_VIDE) {
+        partie->grid.cases[p.x][p.y-1] = x;
+    }
+    // Si le joueur n'a pas été placé vers le haut, vérifier vers la gauche
+    else if (p.x - 1 >= 0 && partie->grid.cases[p.x - 1][p.y] == CASE_VIDE) {
+      
+        partie->grid.cases[p.x-1][p.y] = x;
+    }
+    // Si le joueur n'a pas été placé vers la gauche, vérifier vers la droite
+    else if (p.x + 1 < FIELD_WIDTH && partie->grid.cases[p.x + 1][p.y] == CASE_VIDE) {
+        partie->grid.cases[p.x+1][p.y] = x;
+    }
+    // Si le joueur n'a pas été placé vers la droite, vérifier vers le bas
+    else if (p.y + 1 < FIELD_HEIGHT && partie->grid.cases[p.x][p.y + 1] == CASE_VIDE) {
+        partie->grid.cases[p.x][p.y+1] = x;
+    }
+    
+    //usleep(BOMB_TIMER * 1000000);
     
     ExplosionThreadArgs *exp_args = (ExplosionThreadArgs *)malloc(sizeof(ExplosionThreadArgs));
     exp_args->partie = partie;
