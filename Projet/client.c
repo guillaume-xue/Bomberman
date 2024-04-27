@@ -137,7 +137,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("eth0");
+  int ifindex = if_nametoindex("en0");
   if (ifindex == 0)
     perror("if_nametoindex");
 
@@ -184,7 +184,7 @@ void im_ready() {
 void* attente_fin(void *args) {
     while (1) {    
       //printf(" FIN %d\n",player_id);
-      game_over = check_end(game_grid);
+      //game_over = check_end(game_grid);
     }
     return NULL;
 }

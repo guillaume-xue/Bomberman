@@ -7,11 +7,11 @@ struct explose_arg {
 } explose_arg;
 
 int get_grid(GridData *g, int x, int y) {
-    return g->cases[y * g->largeur + x];
+    return g->cases[x][y];
 }
 
 void set_grid(GridData *g, int x, int y, int v) {
-    g->cases[y*g->largeur + x] = v;
+    g->cases[x][y] = v;
 }
 
 void clear_grid(GridData *g, int x, int y) {
@@ -33,7 +33,7 @@ bool is_wall(GridData *g, int x, int y) {
 }
 
 bool is_movable(GridData *g, int x, int y) {
-    return x >= 0 && x < g->largeur && y >= 0 && y < g->hauteur && !is_wall(g, x, y) && !is_bomb(g, x, y);
+    return x >= 0 && x < g->width && y >= 0 && y < g->height && !is_wall(g, x, y) && !is_bomb(g, x, y);
 }
 
 ACTION control(line* l) {
@@ -71,7 +71,7 @@ void explode_bomb(player global_players, GridData * global_g){
     for (int i = global_players.b->x - 1; i <= global_players.b->x + 1; i++) {
         for (int j = global_players.b->y - 1; j <= global_players.b->y + 1; j++) {
             // On casse les murs cassables
-            if (i >= 0 && i < global_g->largeur && j >= 0 && j < global_g->hauteur && is_wall_breakable(global_g,i, j)){
+            if (i >= 0 && i < global_g->width && j >= 0 && j < global_g->height && is_wall_breakable(global_g,i, j)){
                 clear_grid(global_g,i, j);
 
             }
@@ -167,8 +167,8 @@ bool perform_action_all(player * p, GridData * g){
 
 void refresh_game(line *l, GridData *g) {
     int x, y;
-    for (y = 0; y < g->hauteur; y++) {
-        for (x = 0; x < g->largeur; x++) {
+    for (y = 0; y < g->height; y++) {
+        for (x = 0; x < g->width; x++) {
             char c;
             switch (get_grid(g, x, y)) {
                 case 0: c = ' '; break;
@@ -185,22 +185,22 @@ void refresh_game(line *l, GridData *g) {
             mvaddch(y + 1, x + 1, c);
         }
     }
-    for (x = 0; x < g->largeur+2; x++) {
+    for (x = 0; x < g->width+2; x++) {
         mvaddch(0, x, '-');
-        mvaddch(g->hauteur+1, x, '-');
+        mvaddch(g->height+1, x, '-');
     }
-    for (y = 0; y < g->hauteur+2; y++) {
+    for (y = 0; y < g->height+2; y++) {
         mvaddch(y, 0, '|');
-        mvaddch(y, g->largeur+1, '|');
+        mvaddch(y, g->width+1, '|');
     }
     // Update chat text
     attron(COLOR_PAIR(1)); // Enable custom color 1
     attron(A_BOLD); // Enable bold
-    for (x = 0; x < g->largeur+2; x++) {
+    for (x = 0; x < g->width+2; x++) {
         if (x >= TEXT_SIZE || x >= l->cursor)
-            mvaddch(g->hauteur+2, x, ' ');
+            mvaddch(g->height+2, x, ' ');
         else
-            mvaddch(g->hauteur+2, x, l->data[x]);
+            mvaddch(g->height+2, x, l->data[x]);
     }
     attroff(A_BOLD); // Disable bold
     attroff(COLOR_PAIR(1)); // Disable custom color 1
@@ -210,16 +210,16 @@ void refresh_game(line *l, GridData *g) {
 // Place les murs sur la grille
 void setup_wall(GridData *g) {
     // On met des murs incassables sur les cases impaires
-    for (int i = 1; i < g->largeur; i+=2) {
-        for (int j = 1; j < g->hauteur; j+=2) {
+    for (int i = 1; i < g->width; i+=2) {
+        for (int j = 1; j < g->height; j+=2) {
             set_grid(g, i, j, 1);
         }
     }
     // On met des murs cassables aléatoirement
     int i = 0;
     while (i < NB_WALLS) {
-        int x = rand() % g->largeur;
-        int y = rand() % g->hauteur;
+        int x = rand() % g->width;
+        int y = rand() % g->height;
         if (get_grid(g, x, y) == 0){
             set_grid(g, x, y, 2);
             i++;
@@ -250,22 +250,17 @@ void init_player(player * global_players, GridData * global_g) {
         }
     }
     global_players[0].p->x = 0; global_players[0].p->y = 0;
-    global_players[1].p->x = global_g->largeur - 1; global_players[1].p->y = 0;
-    global_players[2].p->x = 0; global_players[2].p->y = global_g->hauteur - 1;
-    global_players[3].p->x = global_g->largeur - 1; global_players[3].p->y = global_g->hauteur - 1;
+    global_players[1].p->x = global_g->width - 1; global_players[1].p->y = 0;
+    global_players[2].p->x = 0; global_players[2].p->y = global_g->height - 1;
+    global_players[3].p->x = global_g->width - 1; global_players[3].p->y = global_g->height - 1;
 }
 
 // Initialise la grille
 void setup_grid(GridData *g, int hauteur, int largeur, player * p) {
     g->entete.CODEREQ = 11;
     g->NUM = 0; // Car premier message de la partie
-    g->hauteur = hauteur - 2 - 1; // 2 rows reserved for border, 1 row for chat
-    g->largeur = largeur - 2; // 2 columns reserved for border
-    g->cases = calloc((g->largeur) * (g->hauteur), sizeof(int));
-    if (g->cases == NULL) {
-        perror("Memory allocation error for 'g->cases'");
-        exit(EXIT_FAILURE);
-    }
+    g->height = hauteur - 2 - 1; // 2 rows reserved for border, 1 row for chat
+    g->width = largeur - 2; // 2 columns reserved for border
     init_player(p, g);
     setup_players(p, g);
     setup_wall(g);

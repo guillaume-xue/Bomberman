@@ -100,13 +100,27 @@ typedef struct {
                                 // millisecondes)
 } ParametresServeur;
 
+typedef struct bomb {
+    int x;
+    int y;
+    bool set;
+} bomb;
+
+typedef struct player {
+    int id;
+    pos p;
+    bomb b;
+    ACTION action;
+    bool dead;
+} player;
+
 typedef struct {
   int nb_joueurs;
   int partie_id;
   int mode_jeu;
 
   GridData grid;
-  pos players_pos[MAX_CLIENTS];
+  player players[MAX_CLIENTS];
 
   int send_sock; // sock pour envoyer des messages multicast aux clients
   struct sockaddr_in6 multicast_addr; // adresse multicast
@@ -140,21 +154,8 @@ typedef struct {
 typedef struct {
     char data[TEXT_SIZE]; // Tableau de caractères pour la ligne de texte
     int cursor;           // Indice pour le curseur
-    tchatbox tchatbox;    
+    tchatbox tchatbox;
 } line;
-
-typedef struct bomb {
-  int x;
-  int y;
-  bool set;
-} bomb;
-
-typedef struct player {
-  int id;
-  pos *p;
-  bomb *b;
-  ACTION action;
-} player;
 
 typedef struct {
     Partie *partie;

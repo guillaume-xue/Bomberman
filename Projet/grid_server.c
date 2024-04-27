@@ -140,24 +140,6 @@ bool perform_action(player p, GridData * g) {
         // On met à jour la position du joueur
         p.p->x += xd;
         p.p->y += yd;
-
-        // On bouge
-        switch (p.id) {
-            case 1:
-                set_grid(g, p.p->x, p.p->y, 5);
-                break;
-            case 2:
-                set_grid(g, p.p->x, p.p->y, 6);
-                break;
-            case 3:
-                set_grid(g, p.p->x, p.p->y, 7);
-                break;
-            case 4:
-                set_grid(g, p.p->x, p.p->y, 8);
-                break;
-            default:
-                break;
-        }
     }
     return false;
 }
