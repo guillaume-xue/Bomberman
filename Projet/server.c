@@ -194,21 +194,22 @@ bool is_vide(int index_partie, int x, int y) {
     return get_grid(index_partie, x, y) == CASE_VIDE;
 }
 
-bool is_movable(int index_partie, int x, int y) {
-    return x >= 0 && x <= parties[index_partie].grid.width - 2 &&
-           y >= 0 && y <= parties[index_partie].grid.height - 2 &&
-           !is_wall(index_partie, x, y) && !is_bomb(index_partie, x, y);
-}
-
-bool is_exploding(int index_partie, int x, int y) {
-    return get_grid(index_partie, x, y) == EXPLOSION;
-}
-
 bool is_player(int index_partie, int x, int y) {
     for (int i = 5; i <= 8; ++i) {
         if (get_grid(index_partie, x, y) == i) return true;
     }
     return false;
+}
+
+bool is_movable(int index_partie, int x, int y) {
+    return x >= 0 && x <= parties[index_partie].grid.width - 2 &&
+           y >= 0 && y <= parties[index_partie].grid.height - 2 &&
+           !is_wall(index_partie, x, y) && !is_bomb(index_partie, x, y) &&
+           is_player(index_partie, x, y) == false;
+}
+
+bool is_exploding(int index_partie, int x, int y) {
+    return get_grid(index_partie, x, y) == EXPLOSION;
 }
 
 // Place les murs sur la grille
@@ -387,6 +388,7 @@ void explode_bombe(int index_partie, int id_player){
                 (is_wall_breakable(index_partie, i, j) || is_vide(index_partie, i, j))){
                 set_grid(index_partie, i, j, EXPLOSION);
             }
+            // On tue les joueurs
             if(is_player(index_partie, i, j)){
                 int id = get_grid(index_partie, i, j) - 5;
                 parties[index_partie].players[id].dead = true;
@@ -407,6 +409,8 @@ void explode_bombe(int index_partie, int id_player){
 }
 
 int place_bomb(int index_partie, int id_player, pos p) {
+    if (parties[index_partie].players[id_player].b.set == true) return 1; // Si le joueur a déjà une bombe
+
     parties[index_partie].players[id_player].b.x = p.x;
     parties[index_partie].players[id_player].b.y = p.y;
 
@@ -481,7 +485,7 @@ int check_maj(GameMessage *game_message, Partie *partie) {
         }
         break;
     case BOMB:
-        place_bomb(partie->partie_id, id, p);
+        if(place_bomb(partie->partie_id, id, p) == 1) return -1;
         break;
     case QUIT:
         break; // à implémenter
