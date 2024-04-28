@@ -204,11 +204,9 @@ bool is_exploding(int index_partie, int x, int y) {
     return get_grid(index_partie, x, y) == EXPLOSION;
 }
 
-bool have_player_around(int index_partie, int x, int y) {
-    for (int i = 0; i < 4; ++i) {
-        if(parties[index_partie].players[i].p.x == x && parties[index_partie].players[i].p.y == y){
-            return true;
-        }
+bool is_player(int index_partie, int x, int y) {
+    for (int i = 5; i <= 8; ++i) {
+        if (get_grid(index_partie, x, y) == i) return true;
     }
     return false;
 }
@@ -389,8 +387,10 @@ void explode_bombe(int index_partie, int id_player){
                 (is_wall_breakable(index_partie, i, j) || is_vide(index_partie, i, j))){
                 set_grid(index_partie, i, j, EXPLOSION);
             }
-            if(have_player_around(index_partie, i, j)){
-                parties[index_partie].players[id_player].dead = true;
+            if(is_player(index_partie, i, j)){
+                int id = get_grid(index_partie, i, j) - 5;
+                parties[index_partie].players[id].dead = true;
+                set_grid(index_partie, i, j, EXPLOSION);
             }
         }
     }
@@ -427,6 +427,10 @@ int place_bomb(int index_partie, int id_player, pos p) {
 // On vérifie si l'action du joueur est legit
 int check_maj(GameMessage *game_message, Partie *partie) {
     int id = game_message->ID - 1;
+    // Si le joueur est mort, on ne fait rien
+    if (partie->players[id].dead == true) {
+        return -1;
+    }
     ACTION action = game_message->ACTION;
 
     pos p = partie->players[id].p;
