@@ -164,21 +164,90 @@ void *handle_tchat(void *arg) {
   return NULL;
 }
 
+int get_grid(int index_partie, int x, int y) {
+    return parties[index_partie].grid.cases[x][y];
+}
+
+void set_grid(int index_partie, int x, int y, ContenuCase c) {
+    parties[index_partie].grid.cases[x][y] = c;
+}
+
+void clear_grid(int index_partie, int x, int y) {
+    set_grid(index_partie, x, y, CASE_VIDE);
+}
+
+bool is_bomb(int index_partie, int x, int y) {
+    return get_grid(index_partie, x, y) == BOMBE;
+}
+
+// Retourne vrai si la case est un mur cassable
+bool is_wall_breakable(int index_partie, int x, int y){
+    return get_grid(index_partie, x, y) == MUR_DESTRUCTIBLE;
+}
+
+// Retourne vrai si la case est un mur
+bool is_wall(int index_partie, int x, int y) {
+    return get_grid(index_partie, x, y) == MUR_DESTRUCTIBLE || get_grid(index_partie, x, y) == MUR_INDESTRUCTIBLE;
+}
+
+bool is_vide(int index_partie, int x, int y) {
+    return get_grid(index_partie, x, y) == CASE_VIDE;
+}
+
+bool is_movable(int index_partie, int x, int y) {
+    return x >= 0 && x <= parties[index_partie].grid.width - 2 &&
+           y >= 0 && y <= parties[index_partie].grid.height - 2 &&
+           !is_wall(index_partie, x, y) && !is_bomb(index_partie, x, y);
+}
+
+bool is_exploding(int index_partie, int x, int y) {
+    return get_grid(index_partie, x, y) == EXPLOSION;
+}
+
+bool have_player_around(int index_partie, int x, int y) {
+    for (int i = 0; i < 4; ++i) {
+        if(parties[index_partie].players[i].p.x == x && parties[index_partie].players[i].p.y == y){
+            return true;
+        }
+    }
+    return false;
+}
+
+// Place les murs sur la grille
+void setup_wall(int index_partie) {
+    // On met des murs incassables sur les cases impaires
+    for (int i = 1; i < parties[index_partie].grid.width; i+=2) {
+        for (int j = 1; j < parties[index_partie].grid.height; j+=2) {
+            set_grid(index_partie, i, j, MUR_INDESTRUCTIBLE);
+        }
+    }
+    // On met des murs cassables aléatoirement
+    int i = 0;
+    while (i < NB_WALLS) {
+        int x = rand() % parties[index_partie].grid.width;
+        int y = rand() % parties[index_partie].grid.height;
+        if (get_grid(index_partie, x, y) == CASE_VIDE){
+            set_grid(index_partie, x, y, MUR_DESTRUCTIBLE);
+            i++;
+        }
+    }
+}
+
 void init_gridData(int index_partie) {
-  GridData *grid = &parties[index_partie].grid;
+    GridData *grid = &parties[index_partie].grid;
 
-  memset(&grid->entete, 0, sizeof(grid->entete));
-  grid->entete.CODEREQ = 11;
-  grid->NUM = 0; // Car premier message de la partie
+    memset(&grid->entete, 0, sizeof(grid->entete));
+    grid->entete.CODEREQ = 11;
+    grid->NUM = 0; // Car premier message de la partie
 
-  grid->width = FIELD_WIDTH + 2 ; // 2 lignes de "-" + 1 ligne de chat
-  grid->height = FIELD_HEIGHT + 2;   // 2 colonnes de "|"
+    grid->width = FIELD_WIDTH + 2 ; // 2 lignes de "-" + 1 ligne de chat
+    grid->height = FIELD_HEIGHT + 2;   // 2 colonnes de "|"
 
-  memset(grid->cases, CASE_VIDE, MAX_CASES * MAX_CASES * sizeof(u_int8_t));
-  grid->cases[0][0] = J0;
-  grid->cases[0][FIELD_HEIGHT - 1] = J1;
-  grid->cases[FIELD_WIDTH - 1][0] = J2;
-  grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
+    memset(grid->cases, CASE_VIDE, MAX_CASES * MAX_CASES * sizeof(u_int8_t));
+    grid->cases[0][0] = J0;
+    grid->cases[0][FIELD_HEIGHT - 1] = J1;
+    grid->cases[FIELD_WIDTH - 1][0] = J2;
+    grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
 
    // Méthode simple à voir si on va faire un algorithme de création de labyrinthe
     // for (int x = 0; x < FIELD_WIDTH; x++) {
@@ -191,11 +260,7 @@ void init_gridData(int index_partie) {
     //     }
     // }
 
-    for (int x = 1; x < FIELD_WIDTH - 1; x += 2) {
-        for (int y = 1; y < FIELD_HEIGHT - 1; y += 2) {
-            grid->cases[x][y] = MUR_DESTRUCTIBLE;
-        }
-    }
+    setup_wall(index_partie);
 }
 
 void *handle_partie(void *arg) {
@@ -303,49 +368,6 @@ void *handle_client(void *arg) {
   return NULL;
 }
 
-int get_grid(int index_partie, int x, int y) {
-    return parties[index_partie].grid.cases[x][y];
-}
-
-void set_grid(int index_partie, int x, int y, ContenuCase c) {
-    parties[index_partie].grid.cases[x][y] = c;
-}
-
-void clear_grid(int index_partie, int x, int y) {
-    set_grid(index_partie, x, y, CASE_VIDE);
-}
-
-bool is_bomb(int index_partie, int x, int y) {
-    return get_grid(index_partie, x, y) == 3;
-}
-
-// Retourne vrai si la case est un mur cassable
-bool is_wall_breakable(int index_partie, int x, int y){
-    return get_grid(index_partie, x, y) == 2;
-}
-
-// Retourne vrai si la case est un mur
-bool is_wall(int index_partie, int x, int y) {
-    return get_grid(index_partie, x, y) == 1 || get_grid(index_partie, x, y) == 2 ;
-}
-
-bool is_movable(int index_partie, int x, int y) {
-    return x >= 0 && x < parties[index_partie].grid.width &&
-        y >= 0 && y < parties[index_partie].grid.height &&
-        !is_wall(index_partie, x, y) && !is_bomb(index_partie, x, y);
-}
-
-bool have_player_around(int index_partie, int x, int y) {
-    for (int i = 0; i < 4; ++i) {
-        if(parties[index_partie].players[i].p.x == x && parties[index_partie].players[i].p.y == y){
-            return true;
-        }
-    }
-    return false;
-}
-
-void explode_bombe(int index_partie, int id_player);
-
 // Fonction appelée par le thread pour faire exploser la bombe
 void *explose_handler(void * arg) {
     sleep(3);
@@ -358,85 +380,33 @@ void *explose_handler(void * arg) {
 
 // Fait exploser la bombe
 void explode_bombe(int index_partie, int id_player){
+    // On met les explosions
     for (int i = parties[index_partie].players[id_player].b.x - 1; i <= parties[index_partie].players[id_player].b.x + 1; i++) {
         for (int j = parties[index_partie].players[id_player].b.y - 1; j <= parties[index_partie].players[id_player].b.y + 1; j++) {
             // On casse les murs cassables
             if (i >= 0 && i < parties[index_partie].grid.width &&
                 j >= 0 && j < parties[index_partie].grid.height &&
-                is_wall_breakable(index_partie, i, j)){
-                clear_grid(index_partie, i, j);
+                (is_wall_breakable(index_partie, i, j) || is_vide(index_partie, i, j))){
+                set_grid(index_partie, i, j, EXPLOSION);
             }
             if(have_player_around(index_partie, i, j)){
-                // à faire -> détecter si un joueur est touché par l'explosion
+                parties[index_partie].players[id_player].dead = true;
             }
         }
     }
-    sleep(1);
-    // On efface la bombe
+    sleep(1); // Temps d'affichage de l'explosion
+    // On efface la bombe et les explosions
     for (int i = parties[index_partie].players[id_player].b.x - 1; i <= parties[index_partie].players[id_player].b.x + 1; i++) {
         for (int j = parties[index_partie].players[id_player].b.y - 1; j <= parties[index_partie].players[id_player].b.y + 1; j++) {
-            clear_grid(index_partie, i, j);
+            if (is_exploding(index_partie, i, j) || is_bomb(index_partie, i, j)){
+                clear_grid(index_partie, i, j);
+            }
         }
     }
-
     parties[index_partie].players[id_player].b.set = false;
 }
 
-//// Fonction de thread pour gérer l'explosion de la bombe
-//void *explosion_thread(void *args) {
-//    ExplosionThreadArgs *exp_args = (ExplosionThreadArgs *)args;
-//    Partie *partie = exp_args->partie;
-//    pos p = exp_args->p;
-//
-//    // Gérer la mort possible des joueurs , autre idée en cour
-//    //pthread_t threads[MAX_CLIENTS];
-//    int thread_count = -4;
-//    sleep(BOMB_TIMER);
-//
-//    for (int i = -EXPLOSION_RADIUS; i <= EXPLOSION_RADIUS; i++) {
-//        for (int j = -EXPLOSION_RADIUS; j <= EXPLOSION_RADIUS; j++) {
-//            int x = p.x + i;
-//            int y = p.y + j;
-//            if (x >= 0 && x < FIELD_WIDTH && y >= 0 && y < FIELD_HEIGHT && partie->grid.cases[x][y] != MUR_INDESTRUCTIBLE ) {
-//                if(partie->grid.cases[x][y] == J0 || partie->grid.cases[x][y] == J1 || partie->grid.cases[x][y] == J2 || partie->grid.cases[x][y] == J3){
-//                    printf("TOUCHÉÉ !!! %d\n",partie->grid.cases[x][y]);
-//                    int player_id = partie->grid.cases[x][y] - J0;
-//                    printf("player_id : %d \n", player_id);
-//
-//                    partie->players_pos[player_id].x = thread_count;
-//                    partie->players_pos[player_id].y = thread_count;
-//                    thread_count++;
-//                }
-//                partie->grid.cases[x][y] = EXPLOSION;
-//                //int player_id = partie->grid.cases[x][y] - J0;
-//
-//            }
-//        }
-//    }
-//    sleep(BOMB_TIMER);
-//
-//    for (int i = -EXPLOSION_RADIUS; i <= EXPLOSION_RADIUS; i++) {
-//        for (int j = -EXPLOSION_RADIUS; j <= EXPLOSION_RADIUS; j++) {
-//            int x = p.x + i;
-//            int y = p.y + j;
-//            if (x >= 0 && x < FIELD_WIDTH && y >= 0 && y < FIELD_HEIGHT) {
-//                if (partie->grid.cases[x][y] == EXPLOSION) {
-//                    partie->grid.cases[x][y] = CASE_VIDE;
-//                }
-//            }
-//        }
-//    }
-//
-//    // Libérer la mémoire des arguments du thread
-//    //printf(" fin gestion bombe %d \n", thread_count);
-//
-//    free(exp_args);
-//    pthread_exit(NULL);
-//}
-
 int place_bomb(int index_partie, int id_player, pos p) {
-    parties[index_partie].grid.cases[p.x][p.y] = BOMBE;
-
     parties[index_partie].players[id_player].b.x = p.x;
     parties[index_partie].players[id_player].b.y = p.y;
 
@@ -444,13 +414,11 @@ int place_bomb(int index_partie, int id_player, pos p) {
     bomb_arg *arg = malloc(sizeof(bomb_arg));
     arg->index_partie = index_partie;
     arg->id_player = id_player;
-    // Créer un thread pour exécuter fonctionA
+    parties[index_partie].players[id_player].b.set = true;
     if (pthread_create(&thread, NULL, explose_handler, arg) != 0){
         fprintf(stderr, "Erreur lors de la création du thread.\n");
         return 1;
     }
-
-    parties[index_partie].players[id_player].b.set = true;
 
     return 0;
 }
@@ -515,6 +483,9 @@ int check_maj(GameMessage *game_message, Partie *partie) {
         break; // à implémenter
     default:
         return -1;
+    }
+    if (partie->players[id].b.set == true) {
+        set_grid(partie->partie_id, partie->players[id].b.x, partie->players[id].b.y, BOMBE);
     }
     return 0;
 }

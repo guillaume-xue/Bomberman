@@ -262,7 +262,7 @@ char get_grid_char(GridData gridData, int i, int j) {
   case CASE_VIDE:
     return ' ';
   case MUR_INDESTRUCTIBLE:
-        return '|'; 
+        return 'O';
     case MUR_DESTRUCTIBLE:
         return 'x';
   case BOMBE:

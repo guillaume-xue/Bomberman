@@ -16,4 +16,6 @@ void init_multicast_socket(Partie *partie);
 void send_game_s_info(Partie *partie, int client_socket);
 void *game_communication(void *arg);
 
+void explode_bombe(int index_partie, int id_player);
+
 #endif

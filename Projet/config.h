@@ -110,7 +110,6 @@ typedef struct player {
     int id;
     pos p;
     bomb b;
-    ACTION action;
     bool dead;
 } player;
 
