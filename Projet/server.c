@@ -98,7 +98,7 @@ void init_multicast_socket(Partie *partie) {
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
 
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("eth0");
   if (ifindex == 0) {
     perror("if_nametoindex");
     close(partie->send_sock);
@@ -247,17 +247,6 @@ void init_gridData(int index_partie) {
     grid->cases[0][FIELD_HEIGHT - 1] = J1;
     grid->cases[FIELD_WIDTH - 1][0] = J2;
     grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
-
-   // Méthode simple à voir si on va faire un algorithme de création de labyrinthe
-    // for (int x = 0; x < FIELD_WIDTH; x++) {
-    //     for (int y = 0; y < FIELD_HEIGHT; y++) {
-    //         if ((x % 2 == 0 && y % 2 == 0) &&           
-    //         !(x == 0 && (y == 0 || y == FIELD_HEIGHT - 1)) &&  // Exclure le coin en haut à gauche et en bas à gauche
-    //         !(x == FIELD_WIDTH - 1 && (y == 0 || y == FIELD_HEIGHT - 1))) { // Exclure le coin en haut à droite et en bas à droite
-    //         grid->cases[x][y] = MUR_INDESTRUCTIBLE;
-    //     }
-    //     }
-    // }
 
     setup_wall(index_partie);
 }
@@ -427,7 +416,6 @@ int place_bomb(int index_partie, int id_player, pos p) {
     return 0;
 }
 
-// EN cour , -> version BASIQUE
 // On vérifie si l'action du joueur est legit
 int check_maj(GameMessage *game_message, Partie *partie) {
     int id = game_message->ID - 1;
@@ -488,7 +476,7 @@ int check_maj(GameMessage *game_message, Partie *partie) {
         if(place_bomb(partie->partie_id, id, p) == 1) return -1;
         break;
     case QUIT:
-        break; // à implémenter
+        break; 
     default:
         return -1;
     }
@@ -503,6 +491,13 @@ void *game_communication(void *arg) {
   int partie_id = *(int *)arg;
 
   GameMessage game_message;
+  
+  int* id = malloc(sizeof(int));
+  pthread_t thread_end;
+  if (pthread_create(&thread_end, NULL, handle_game_over, id) != 0){
+        fprintf(stderr, "Erreur lors de la création du thread.\n");
+  }
+
   while (1) {
 
     memset(&game_message, 0, sizeof(GameMessage));
@@ -528,6 +523,17 @@ void *game_communication(void *arg) {
 
   return NULL;
 }
+
+
+void* handle_game_over(void* partie){
+  int *i = (int *) partie;
+  while(!parties[*i].players[0].dead || !parties[*i].players[1].dead || !parties[*i].players[2].dead || !parties[*i].players[3].dead ){}
+  printf(" FIN %d",*i);
+  free(partie);
+  exit(EXIT_SUCCESS);
+  return NULL;
+}
+
 
 int main() {
   int server_socket;

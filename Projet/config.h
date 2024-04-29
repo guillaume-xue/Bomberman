@@ -26,6 +26,7 @@
 #define FIELD_WIDTH 30  // la longueur réelle du terrain de jeu
 #define FIELD_HEIGHT 15 // la hauteur réelle du terrain de jeu
 #define TCHATBOX_HEIGHT 15 
+#define TIMEOUT_SECONDS 10
 
 typedef enum ACTION { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3, BOMB = 4, QUIT = 5, NONE = 6, SUBMIT = 7 } ACTION;
 enum colors { GREEN, YELLOW, MAGENTA, CYAN };
@@ -155,10 +156,5 @@ typedef struct {
     int cursor;           // Indice pour le curseur
     tchatbox tchatbox;
 } line;
-
-typedef struct {
-    Partie *partie;
-    pos p;
-} ExplosionThreadArgs;
 
 #endif

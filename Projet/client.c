@@ -137,7 +137,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("eth0");
   if (ifindex == 0)
     perror("if_nametoindex");
 
@@ -190,13 +190,23 @@ void* attente_fin(void *args) {
 }
 
 void *receive_grid(void *arg) {
+  ssize_t bytesReceived;
   while (1) {
-    if (recv(udp_socket, &game_grid, sizeof(GridData), 0) < 0) {
+    bytesReceived = recv(udp_socket, &game_grid, sizeof(GridData), 0);
+    if (bytesReceived < 0) {
       perror("La réception de la grille a échoué");
       exit(EXIT_FAILURE);
     }
+    else if (bytesReceived == 0) {
+        printf("Connexion fermée par le serveur.\n");
+        break;
+    }
+    else {
+        alarm(TIMEOUT_SECONDS);
+    } 
   }
-
+  close(udp_socket);
+  exit(EXIT_SUCCESS);
   return NULL;
 }
 
@@ -288,7 +298,6 @@ void launch_game() {
       }
     }
     usleep(10000); // 10ms
-
     print_grid(game_grid, l);
   }
 
