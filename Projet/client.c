@@ -179,16 +179,6 @@ void im_ready() {
            color, player_id, "\033[0m", team_number);
 }
 
-// Fin 
-
-void* attente_fin(void *args) {
-    while (1) {    
-      //printf(" FIN %d\n",player_id);
-      //game_over = check_end(game_grid);
-    }
-    return NULL;
-}
-
 void *receive_grid(void *arg) {
   ssize_t bytesReceived;
   while (1) {

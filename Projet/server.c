@@ -113,9 +113,9 @@ void *handle_tchat_clientX(void *arg) {
   data *d = (data *)arg;
 
   Partie *partie = &parties[d->index_partie];
-
+  int x = d->index_partie;
   TchatMessage msg;
-  while (1) {
+  while (!parties[x].players[0].dead || !parties[x].players[1].dead || !parties[x].players[2].dead || !parties[x].players[3].dead ) {
     memset(&msg, 0, sizeof(TchatMessage));
     if (recv(partie->clients_socket_tcp[d->id], &msg, sizeof(TchatMessage), 0) <
         0) {
@@ -143,6 +143,7 @@ void *handle_tchat_clientX(void *arg) {
     }
   }
   free(arg);
+  return NULL;
 }
 
 // Partie incomplete puisque il faut 4 threads pour les 4 joueurs
@@ -248,7 +249,7 @@ void init_gridData(int index_partie) {
     grid->cases[FIELD_WIDTH - 1][0] = J2;
     grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
 
-    setup_wall(index_partie);
+    // setup_wall(index_partie);
 }
 
 void *handle_partie(void *arg) {
@@ -286,6 +287,9 @@ void *handle_partie(void *arg) {
   int *y = malloc(sizeof(int));
   *y = index_partie;
   pthread_create(&thread_tchat_communication, NULL, handle_tchat, y);
+
+  pthread_join(thread_grid, NULL);
+  pthread_join(thread_tchat_communication, NULL);
 
   free(arg);
   return NULL;
@@ -348,9 +352,9 @@ void *handle_client(void *arg) {
     int *x = malloc(sizeof(int));
     *x = index_partie;
     pthread_create(&thread_partie, NULL, handle_partie, x);
-  } else {
-    pthread_mutex_unlock(&mutex_partie);
-  }
+    pthread_join(thread_partie, NULL);
+  } 
+  else pthread_mutex_unlock(&mutex_partie);
 
   free(arg);
   return NULL;
@@ -491,14 +495,7 @@ void *game_communication(void *arg) {
   int partie_id = *(int *)arg;
 
   GameMessage game_message;
-  
-  int* id = malloc(sizeof(int));
-  pthread_t thread_end;
-  if (pthread_create(&thread_end, NULL, handle_game_over, id) != 0){
-        fprintf(stderr, "Erreur lors de la création du thread.\n");
-  }
-
-  while (1) {
+  while (!parties[partie_id].players[0].dead || !parties[partie_id].players[1].dead || !parties[partie_id].players[2].dead || !parties[partie_id].players[3].dead ) {
 
     memset(&game_message, 0, sizeof(GameMessage));
     if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage),
@@ -521,6 +518,7 @@ void *game_communication(void *arg) {
     // sleep(INTERVALLE_ENVOI);
   }
 
+  free(arg);
   return NULL;
 }
 
@@ -530,7 +528,6 @@ void* handle_game_over(void* partie){
   while(!parties[*i].players[0].dead || !parties[*i].players[1].dead || !parties[*i].players[2].dead || !parties[*i].players[3].dead ){}
   printf(" FIN %d",*i);
   free(partie);
-  exit(EXIT_SUCCESS);
   return NULL;
 }
 

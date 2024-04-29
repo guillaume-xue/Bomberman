@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -g
 LIBS = -lcurses -lpthread
 
 CLIENT_OBJS = client.o grid.o func.o  # Ajoute func.o si nécessaire
@@ -15,6 +15,13 @@ server: $(SERVER_OBJS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+memcheck_server: server 
+	valgrind --leak-check=full ./server
+
+memcheck_client:  client
+	valgrind --leak-check=full ./client
+
 
 clean:
 	rm -f *.o client server
