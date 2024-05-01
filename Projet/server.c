@@ -120,6 +120,7 @@ void *handle_tchat_clientX(void *arg) {
     if (recv(partie->clients_socket_tcp[d->id], &msg, sizeof(TchatMessage), 0) <
         0) {
       perror("La réception du message a échoué");
+      free(arg);
       exit(EXIT_FAILURE);
     }
 
@@ -130,6 +131,7 @@ void *handle_tchat_clientX(void *arg) {
         if (send(partie->clients_socket_tcp[i], &msg, sizeof(TchatMessage), 0) <
             0) {
           perror("L'envoi du message a échoué");
+           free(arg);
           exit(EXIT_FAILURE);
         }
       }
@@ -138,6 +140,8 @@ void *handle_tchat_clientX(void *arg) {
       if (send(partie->clients_socket_tcp[mate], &msg, sizeof(TchatMessage), 0) <
           0) {
         perror("L'envoi du message a échoué");
+         free(arg);
+     
         exit(EXIT_FAILURE);
       }
     }
@@ -275,6 +279,7 @@ void *handle_partie(void *arg) {
              (struct sockaddr *)&partie->multicast_addr,
              sizeof(partie->multicast_addr)) < 0) {
     perror("L'envoi de la grille a échoué");
+    free(arg); 
     exit(EXIT_FAILURE);
   }
 
@@ -304,6 +309,7 @@ void *handle_client(void *arg) {
   // Réception du message depuis le client
   if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
     perror("La réception du message a échoué");
+     free(arg);
     exit(EXIT_FAILURE);
   }
 
@@ -317,6 +323,7 @@ void *handle_client(void *arg) {
 
   if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
     perror("La réception du message a échoué");
+     free(arg);
     exit(EXIT_FAILURE);
   }
 
@@ -350,6 +357,11 @@ void *handle_client(void *arg) {
   if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
     pthread_t thread_partie;
     int *x = malloc(sizeof(int));
+    if(x==NULL){
+      perror("Erreur debut de partie");
+      free(arg);
+      exit(EXIT_FAILURE);
+    }
     *x = index_partie;
     pthread_create(&thread_partie, NULL, handle_partie, x);
     pthread_join(thread_partie, NULL);
@@ -501,6 +513,7 @@ void *game_communication(void *arg) {
     if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage),
              0) < 0) {
       perror("La réception de la grille a échoué");
+      free(arg);
       exit(EXIT_FAILURE);
     }
 
@@ -512,6 +525,7 @@ void *game_communication(void *arg) {
                (struct sockaddr *)&parties[partie_id].multicast_addr,
                sizeof(parties[partie_id].multicast_addr)) < 0) {
       perror("L'envoi de la grille a échoué");
+      free(arg);
       exit(EXIT_FAILURE);
     }
 
@@ -571,12 +585,15 @@ int main() {
       int *x = malloc(sizeof(int));
       if (!x) {
         perror("L'allocation de la mémoire a échoué");
+        free(x);
         exit(EXIT_FAILURE);
       }
 
       *x = client_socket_tcp;
       pthread_t thread_client;
       pthread_create(&thread_client, NULL, handle_client, x);
+
+      //pthread_join(thread_client, NULL);
     }
   }
 

@@ -248,12 +248,6 @@ void launch_game() {
     exit(EXIT_FAILURE);
   }
 
-  pthread_t thread_attente_fin;
-  if (pthread_create(&thread_attente_fin, NULL, attente_fin, NULL) != 0) {
-      perror("Erreur lors de la création du thread d'attente de la fin");
-      exit(EXIT_FAILURE);
-  }
-
   GameMessage my_action;
   TchatMessage my_msg;
   while (!game_over) {
