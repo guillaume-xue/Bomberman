@@ -136,7 +136,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("eth0");
+  int ifindex = if_nametoindex("en0");
   if (ifindex == 0)
     perror("if_nametoindex");
 
@@ -179,14 +179,14 @@ void im_ready() {
 }
 
 void *receive_grid(void *arg) {
-  ssize_t bytesReceived;
+  ssize_t nb_recv;
   while (1) {
-    bytesReceived = recv(udp_socket, &game_grid, sizeof(GridData), 0);
-    if (bytesReceived < 0) {
+    nb_recv = recv(udp_socket, &game_grid, sizeof(GridData), 0);
+    if (nb_recv < 0) {
       perror("La réception de la grille a échoué");
       exit(EXIT_FAILURE);
     }
-    else if (bytesReceived == 0) {
+    else if (nb_recv == 0) {
         printf("Connexion fermée par le serveur.\n");
         break;
     }
@@ -203,9 +203,9 @@ void *receive_grid(void *arg) {
 void *receive_tchat(void *arg) {
   TchatMessage tchat_message;
   while (1) {
-    int bytes_received = recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0);
-    if (bytes_received <= 0) {
-      if (bytes_received < 0) {
+    int nb_recv = recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0);
+    if (nb_recv <= 0) {
+      if (nb_recv < 0) {
         perror("La réception du message a échoué");
       } else {
         printf("Le client s'est déconnecté.\n");
