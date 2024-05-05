@@ -115,7 +115,7 @@ void *handle_tchat_clientX(void *arg) {
   Partie *partie = &parties[d->index_partie];
   int x = d->index_partie;
   TchatMessage msg;
-  while (!parties[x].players[0].dead || !parties[x].players[1].dead || !parties[x].players[2].dead || !parties[x].players[3].dead ) {
+  while (!(parties[x].players[0].dead) || !(parties[x].players[1].dead) || !(parties[x].players[2].dead) || !(parties[x].players[3].dead) ) {
     memset(&msg, 0, sizeof(TchatMessage));
     if (recv(partie->clients_socket_tcp[d->id], &msg, sizeof(TchatMessage), 0) <
         0) {
@@ -146,6 +146,11 @@ void *handle_tchat_clientX(void *arg) {
       }
     }
   }
+
+  if(DEBUG){
+    printf(" Fin gestion du client ");
+  }
+
   free(arg);
   return NULL;
 }
@@ -165,6 +170,9 @@ void *handle_tchat(void *arg) {
     pthread_join(thread_tchat_clients[i], NULL);
   }
 
+  if(DEBUG){
+    printf(" Fin chat ");
+  }
   free(arg);
   return NULL;
 }
@@ -296,6 +304,9 @@ void *handle_partie(void *arg) {
   pthread_join(thread_grid, NULL);
   pthread_join(thread_tchat_communication, NULL);
 
+  if(DEBUG){
+    printf(" Lancement de toute les gestions de parties partie : %d ",index_partie );
+  }
   free(arg);
   return NULL;
 }
@@ -507,7 +518,7 @@ void *game_communication(void *arg) {
   int partie_id = *(int *)arg;
 
   GameMessage game_message;
-  while (!parties[partie_id].players[0].dead || !parties[partie_id].players[1].dead || !parties[partie_id].players[2].dead || !parties[partie_id].players[3].dead ) {
+  while (!(parties[partie_id].players[0].dead) || !(parties[partie_id].players[1].dead) || !(parties[partie_id].players[2].dead) || !(parties[partie_id].players[3].dead) ) {
 
     memset(&game_message, 0, sizeof(GameMessage));
     if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage),
@@ -528,8 +539,10 @@ void *game_communication(void *arg) {
       free(arg);
       exit(EXIT_FAILURE);
     }
-
     // sleep(INTERVALLE_ENVOI);
+  }
+  if(DEBUG){
+    printf(" Fin de la partie %d le gagnant est : ",partie_id );
   }
 
   free(arg);
@@ -558,7 +571,7 @@ int main() {
     exit(EXIT_FAILURE);
   }
 
-  if (listen(server_socket, 5) < 0) {
+  if (listen(server_socket, 10) < 0) {
     perror("Écoute des connexions a échoué");
     exit(EXIT_FAILURE);
   }

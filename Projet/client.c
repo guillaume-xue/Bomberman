@@ -179,14 +179,14 @@ void im_ready() {
 }
 
 void *receive_grid(void *arg) {
-  ssize_t bytesReceived;
+  ssize_t recu;
   while (1) {
-    bytesReceived = recv(udp_socket, &game_grid, sizeof(GridData), 0);
-    if (bytesReceived < 0) {
+    recu = recv(udp_socket, &game_grid, sizeof(GridData), 0);
+    if (recu < 0) {
       perror("La réception de la grille a échoué");
       exit(EXIT_FAILURE);
     }
-    else if (bytesReceived == 0) {
+    else if (recu == 0) {
         printf("Connexion fermée par le serveur.\n");
         break;
     }
@@ -194,8 +194,8 @@ void *receive_grid(void *arg) {
         //alarm(TIMEOUT_SECONDS);
     } 
   }
-  close(udp_socket);
-  exit(EXIT_SUCCESS);
+  //close(udp_socket);
+  //exit(EXIT_SUCCESS);
   return NULL;
 }
 
@@ -203,9 +203,9 @@ void *receive_grid(void *arg) {
 void *receive_tchat(void *arg) {
   TchatMessage tchat_message;
   while (1) {
-    int bytes_received = recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0);
-    if (bytes_received <= 0) {
-      if (bytes_received < 0) {
+    int recu = recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0);
+    if (recu <= 0) {
+      if (recu < 0) {
         perror("La réception du message a échoué");
       } else {
         printf("Le client s'est déconnecté.\n");
@@ -227,6 +227,7 @@ void *receive_tchat(void *arg) {
       eraser(l);
     }
   }
+  return NULL;
 }
 
 void launch_game() {
