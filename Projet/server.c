@@ -207,8 +207,8 @@ bool is_player(int index_partie, int x, int y) {
 }
 
 bool is_movable(int index_partie, int x, int y) {
-    return x >= 0 && x <= parties[index_partie].grid.width - 2 &&
-           y >= 0 && y <= parties[index_partie].grid.height - 2 &&
+    return x >= 0 && x <= FIELD_WIDTH - 1 &&
+           y >= 0 && y <= FIELD_HEIGHT - 1 &&
            !is_wall(index_partie, x, y) && !is_bomb(index_partie, x, y) &&
            is_player(index_partie, x, y) == false;
 }
@@ -253,7 +253,7 @@ void init_gridData(int index_partie) {
     grid->cases[FIELD_WIDTH - 1][0] = J2;
     grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
 
-    // setup_wall(index_partie);
+    setup_wall(index_partie);
 }
 
 void *handle_partie(void *arg) {
@@ -535,16 +535,6 @@ void *game_communication(void *arg) {
   free(arg);
   return NULL;
 }
-
-
-void* handle_game_over(void* partie){
-  int *i = (int *) partie;
-  while(!parties[*i].players[0].dead || !parties[*i].players[1].dead || !parties[*i].players[2].dead || !parties[*i].players[3].dead ){}
-  printf(" FIN %d",*i);
-  free(partie);
-  return NULL;
-}
-
 
 int main() {
   int server_socket;

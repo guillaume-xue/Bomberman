@@ -6,7 +6,6 @@ int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char* color;
 int game_mode = false;
-bool game_over;
 GridData game_grid;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
@@ -192,7 +191,7 @@ void *receive_grid(void *arg) {
         break;
     }
     else {
-        alarm(TIMEOUT_SECONDS);
+        //alarm(TIMEOUT_SECONDS);
     } 
   }
   close(udp_socket);
@@ -204,10 +203,16 @@ void *receive_grid(void *arg) {
 void *receive_tchat(void *arg) {
   TchatMessage tchat_message;
   while (1) {
-    if (recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0) < 0) {
-      perror("La réception du message a échoué");
-      exit(EXIT_FAILURE);
-    }
+    int bytes_received = recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0);
+    if (bytes_received <= 0) {
+      if (bytes_received < 0) {
+        perror("La réception du message a échoué");
+      } else {
+        printf("Le client s'est déconnecté.\n");
+      }
+      //close(tcp_socket); 
+      pthread_exit(NULL); 
+   }
     
     // On ajoute le message reçu à la conversation
     if (l->tchatbox.nb_lines == TCHATBOX_HEIGHT - 3) {
@@ -250,7 +255,7 @@ void launch_game() {
 
   GameMessage my_action;
   TchatMessage my_msg;
-  while (!game_over) {
+  while (1) {
     ACTION a = control(l);
     if (a != NONE) {
       if (a == QUIT) {
