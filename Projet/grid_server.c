@@ -71,7 +71,7 @@ void init_player(player * global_players, GridData * global_g) {
 }
 
 // Fonction appelée par le thread pour faire exploser la bombe
-void explose_handler(void * arg) {
+void *explose_handler(void * arg) {
     sleep(3);
     player global_players = ((struct explose_arg *)arg)->p;
     GridData * global_g = ((struct explose_arg *)arg)->g;
@@ -85,7 +85,6 @@ void explode_bomb(player global_players, GridData * global_g){
             // On casse les murs cassables
             if (i >= 0 && i < global_g->largeur && j >= 0 && j < global_g->hauteur && is_wall_breakable(global_g,i, j)){
                 clear_grid(global_g,i, j);
-
             }
         }
     }
@@ -116,7 +115,7 @@ bool perform_action(player p, GridData * g) {
             pthread_t thread;
             explose_arg = (struct explose_arg){p, g};
             // Créer un thread pour exécuter fonctionA
-            if (pthread_create(&thread, NULL, (void *(*)(void *)) explose_handler, (void *)&explose_arg) != 0){
+            if (pthread_create(&thread, NULL, explose_handler, (void *)&explose_arg) != 0){
                 fprintf(stderr, "Erreur lors de la création du thread.\n");
                 return 1;
             }
