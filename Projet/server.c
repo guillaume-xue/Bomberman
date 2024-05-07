@@ -9,7 +9,8 @@ typedef struct bomb_arg{
 
 int nb_partie = 0;
 
-pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_parties[MAX_PARTIES];
+pthread_mutex_t mutex_place = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_partie = PTHREAD_COND_INITIALIZER;
 
 void add_partie(int client_socket, int mode_jeu) {
@@ -33,14 +34,14 @@ void add_player(Partie *partie, int client_socket) {
 }
 
 int join_or_create(int client_socket, int mode_jeu) {
-  pthread_mutex_lock(&mutex_partie);
+  pthread_mutex_lock(&mutex_place);
 
   for (int i = 0; i < nb_partie; i++) {
     if (parties[i].mode_jeu != -1) {
       if (parties[i].mode_jeu == mode_jeu &&
           parties[i].nb_joueurs < MAX_CLIENTS) {
         add_player(&parties[i], client_socket);
-        pthread_mutex_unlock(&mutex_partie);
+        pthread_mutex_unlock(&mutex_place);
         return i;
       }
     }
@@ -51,7 +52,7 @@ int join_or_create(int client_socket, int mode_jeu) {
     nb_partie++;
   }
 
-  pthread_mutex_unlock(&mutex_partie);
+  pthread_mutex_unlock(&mutex_place);
   return nb_partie - 1; // retourne l'index de la partie tout juste créer
 }
 
@@ -357,7 +358,7 @@ void *handle_client(void *arg) {
 
   printf("%s\n", buf);
 
-  pthread_mutex_lock(&mutex_partie);
+  pthread_mutex_lock(&mutex_parties[index_partie]);
   printf("Il reste %d places dans la partie n.%d %s\n",
          MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
          (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0)
@@ -376,8 +377,8 @@ void *handle_client(void *arg) {
     *x = index_partie;
     pthread_create(&thread_partie, NULL, handle_partie, x);
     pthread_join(thread_partie, NULL);
-  } 
-  else pthread_mutex_unlock(&mutex_partie);
+  }
+  else pthread_mutex_unlock(&mutex_parties[index_partie]);
 
   free(arg);
   return NULL;
@@ -574,6 +575,10 @@ int main() {
   if (listen(server_socket, 10) < 0) {
     perror("Écoute des connexions a échoué");
     exit(EXIT_FAILURE);
+  }
+
+  for (int i = 0; i < MAX_PARTIES; ++i) {
+    pthread_mutex_init(&mutex_parties[i], NULL);
   }
 
   printf("Serveur démarré, en attente de connexions...\n\n");
