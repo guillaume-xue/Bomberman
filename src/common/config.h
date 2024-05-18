@@ -14,12 +14,12 @@
 #include <unistd.h>
 #include <time.h>
 
-#define TCP_PORT 8081
+#define TCP_PORT 8082
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
 #define INTERVALLE_ENVOI 1
 #define TEXT_SIZE 255
-#define NB_WALLS 100
+#define NB_WALLS 50
 #define MAX_CLIENTS 4
 #define MAX_PARTIES 5
 #define MAX_CASES 50

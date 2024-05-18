@@ -26,6 +26,10 @@ bool is_wall_breakable(Partie *partie, int x, int y){
   return get_grid(partie, x, y) == MUR_DESTRUCTIBLE;
 }
 
+bool is_wall_nd(Partie *partie, int x, int y){
+  return get_grid(partie, x, y) == MUR_INDESTRUCTIBLE;
+}
+
 // Retourne vrai si la case est un mur
 bool is_wall(Partie *partie, int x, int y) {
   return get_grid(partie, x, y) == MUR_DESTRUCTIBLE || get_grid(partie, x, y) == MUR_INDESTRUCTIBLE;
@@ -75,9 +79,13 @@ void setup_wall(Partie *partie) {
 
 // Fait exploser la bombe
 void explode_bombe(Partie *partie, int id_player){
+
+    int bx = partie->players[id_player].b.x;
+    int by = partie->players[id_player].b.y;
+
   // On met les explosions
-  for (int i = partie->players[id_player].b.x - 1; i <= partie->players[id_player].b.x + 1; i++) {
-    for (int j = partie->players[id_player].b.y - 1; j <= partie->players[id_player].b.y + 1; j++) {
+  for (int i = bx - 1; i <= bx + 1; i++) {
+    for (int j = by - 1; j <= by + 1; j++) {
       // On casse les murs cassables
       if (i >= 0 && i < partie->grid.width &&
           j >= 0 && j < partie->grid.height &&
@@ -92,6 +100,42 @@ void explode_bombe(Partie *partie, int id_player){
       }
     }
   }
+
+  // Pointe en haut
+    if (by - 2 >= 0 && (is_wall_breakable(partie, bx, by - 2) || is_vide(partie, bx, by - 2)) && !(is_wall_nd(partie,bx,by-1))) {
+        if(is_player(partie, bx, by-2)){
+        int id = get_grid(partie, bx, by-2) - 5;
+        partie->players[id].dead = true;
+        }
+        set_grid(partie, bx, by - 2, EXPLOSION);
+    }
+    // Pointe en bas
+    if (by + 2 < partie->grid.height && (is_wall_breakable(partie, bx, by + 2) || is_vide(partie, bx, by + 2)) && !(is_wall_nd(partie,bx,by+1))) {
+        if(is_player(partie, bx, by+2)){
+        int id = get_grid(partie, bx, by-2) - 5;
+        partie->players[id].dead = true;
+        }
+        set_grid(partie, bx, by + 2, EXPLOSION);
+    }
+    // Pointe à gauche
+    if (bx - 2 >= 0 && (is_wall_breakable(partie, bx - 2, by) || is_vide(partie, bx - 2, by)) && !(is_wall_nd(partie,bx-1,by))) {
+        if(is_player(partie, bx-2, by)){
+        int id = get_grid(partie, bx, by-2) - 5;
+        partie->players[id].dead = true;
+        }
+        set_grid(partie, bx - 2, by, EXPLOSION);
+    }
+    // Pointe à droite
+    if (bx + 2 < partie->grid.width && (is_wall_breakable(partie, bx + 2, by) || is_vide(partie, bx + 2, by)) && !(is_wall_nd(partie,bx+1,by))) {
+        if(is_player(partie, bx+2, by)){
+        int id = get_grid(partie, bx, by-2) - 5;
+        partie->players[id].dead = true;
+        }
+        set_grid(partie, bx + 2, by, EXPLOSION);
+    }
+
+  // rajout des 4 effets d'explosions sur les pointes 
+
   sleep(1); // Temps d'affichage de l'explosion
   // On efface la bombe et les explosions
   for (int i = partie->players[id_player].b.x - 1; i <= partie->players[id_player].b.x + 1; i++) {
@@ -101,6 +145,21 @@ void explode_bombe(Partie *partie, int id_player){
       }
     }
   }
+
+  // Effacer les 4 effets d'explosions sur les pointes
+    if (by - 2 >= 0 && is_exploding(partie, bx, by - 2)) {
+        clear_grid(partie, bx, by - 2);
+    }
+    if (by + 2 < partie->grid.height && is_exploding(partie, bx, by + 2)) {
+        clear_grid(partie, bx, by + 2);
+    }
+    if (bx - 2 >= 0 && is_exploding(partie, bx - 2, by)) {
+        clear_grid(partie, bx - 2, by);
+    }
+    if (bx + 2 < partie->grid.width && is_exploding(partie, bx + 2, by)) {
+        clear_grid(partie, bx + 2, by);
+    }
+
   partie->players[id_player].b.set = false;
 }
 

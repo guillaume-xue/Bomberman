@@ -115,7 +115,7 @@ void *handle_tchat_clientX(void *arg) {
     memset(&msg, 0, sizeof(TchatMessage));
     if (recv(partie->clients_socket_tcp[d->id], &msg, sizeof(TchatMessage), 0) <
         0) {
-      perror("La réception du message a échoué");
+      perror("handle_tchat_clientX : La réception du message a échoué");
       free(arg);
       exit(EXIT_FAILURE);
     }
@@ -151,7 +151,6 @@ void *handle_tchat_clientX(void *arg) {
   return NULL;
 }
 
-// Partie incomplete puisque il faut 4 threads pour les 4 joueurs
 void *handle_tchat(void *arg) {
   pthread_t thread_tchat_clients[MAX_CLIENTS];
   for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -317,7 +316,7 @@ void handle_client_poll(int client_socket) {
     memset(&received_message, 0, sizeof(EnteteMessage));
 
     if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
-        perror("La réception du message a échoué");
+        perror("poll : La réception du message a échoué");
         return;
     }
 
@@ -327,7 +326,7 @@ void handle_client_poll(int client_socket) {
     memset(&client_ready, 0, sizeof(GameMessage));
 
     if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
-        perror("La réception du message a échoué");
+        perror("poll s : La réception du message a échoué");
         return;
     }
 

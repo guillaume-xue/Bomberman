@@ -58,14 +58,13 @@
 //   return 0;
 // }
 
-
 int main() {
     int server_socket;
     struct sockaddr_in6 server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
     struct pollfd fds[MAX_CLIENTS];
     int nfds = 1; 
-    int timeout = -1; // temps d'attente à voir après 
+    int timeout = 15000; // 15 secondes
 
     // Initialisation
     for (int i = 0; i < MAX_CLIENTS; ++i) {
@@ -96,8 +95,6 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    init_mutex();
-
     printf("Serveur démarré, en attente de connexions...\n\n");
 
     fds[0].fd = server_socket;
@@ -109,6 +106,17 @@ int main() {
         if (poll_count == -1) {
             perror("poll a échoué");
             exit(EXIT_FAILURE);
+        } else if (poll_count == 0) {
+            // Timeout reached
+            printf("Timeout atteint, aucun événement reçu. Suppression des clients inactifs...\n");
+            for (int i = 1; i < nfds; ++i) {
+                if (fds[i].fd != -1) {
+                    close(fds[i].fd);
+                    fds[i].fd = -1;
+                }
+            }
+            nfds = 1;
+            continue; // Revenir au début de la boucle
         }
 
         for (int i = 0; i < nfds; ++i) {
@@ -120,7 +128,6 @@ int main() {
                     } else {
                         printf("Ohhh, un client a rejoint le serveur\n");
 
-                       
                         for (int j = 1; j < MAX_CLIENTS; ++j) {
                             if (fds[j].fd == -1) {
                                 fds[j].fd = client_socket;
@@ -136,7 +143,6 @@ int main() {
                     int client_socket = fds[i].fd;
                     handle_client_poll(client_socket);
 
-                    close(client_socket);
                     fds[i].fd = -1;
 
                     if (i == nfds - 1) {

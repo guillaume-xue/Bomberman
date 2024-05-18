@@ -23,7 +23,7 @@ void receive_gmsg(int client_socket) {
   memset(&received_message, 0, sizeof(GameMessage));
   // Réception du message depuis le client
   if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
-    perror("La réception du message a échoué");
+    perror(" recv_mess : La réception du message a échoué");
     exit(EXIT_FAILURE);
   }
 }
@@ -206,7 +206,7 @@ void *receive_tchat(void *arg) {
     int recu = recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0);
     if (recu <= 0) {
       if (recu < 0) {
-        perror("La réception du message a échoué");
+        perror("Tchat client : La réception du message a échoué");
       } else {
         printf("Le client s'est déconnecté.\n");
       }
