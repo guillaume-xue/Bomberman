@@ -309,6 +309,68 @@ void *handle_client(void *arg) {
   return NULL;
 }
 
+// Version poll
+void handle_client_poll(int client_socket) {
+    EnteteMessage received_message;
+    memset(&received_message, 0, sizeof(EnteteMessage));
+
+    if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
+        perror("La réception du message a échoué");
+        return;
+    }
+
+    int index_partie = join_or_create(client_socket, received_message.CODEREQ);
+
+    GameMessage client_ready;
+    memset(&client_ready, 0, sizeof(GameMessage));
+
+    if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
+        perror("La réception du message a échoué");
+        return;
+    }
+
+    char buf[SIZE_MSG];
+    memset(buf, 0, sizeof(buf));
+
+    if (client_ready.EQ == -1) {
+        snprintf(buf, SIZE_MSG,
+                 "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
+                 "en mode : SOLO (1v3).",
+                 id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+                 index_partie);
+    } else {
+        snprintf(buf, SIZE_MSG,
+                 "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
+                 "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
+                 id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+                 client_ready.EQ, index_partie);
+    }
+
+    //printf("%s\n", buf);
+
+    pthread_mutex_lock(&mutex_parties[index_partie]);
+    printf("Il reste %d places dans la partie n.%d %s\n",
+           MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
+           (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0)
+               ? "\n\033[31m\nNous sommes au complet, la partie peut commencer "
+                 "!!\033[0m\n"
+               : "\n");
+
+    if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
+        pthread_t thread_partie;
+        int *x = malloc(sizeof(int));
+        if(x == NULL) {
+            perror("Erreur début de partie");
+            return;
+        }
+        *x = index_partie;
+        pthread_create(&thread_partie, NULL, handle_partie, x);
+        pthread_join(thread_partie, NULL);
+    } else {
+        pthread_mutex_unlock(&mutex_parties[index_partie]);
+    }
+}
+
 void *game_communication(void *arg) {
   int partie_id = *(int *)arg;
 

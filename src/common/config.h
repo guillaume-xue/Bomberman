@@ -28,6 +28,7 @@
 #define TCHATBOX_HEIGHT 15 
 #define TIMEOUT_SECONDS 10
 #define DEBUG 1
+
 typedef enum ACTION { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3, BOMB = 4, QUIT = 5, NONE = 6, SUBMIT = 7 } ACTION;
 enum colors { GREEN, YELLOW, MAGENTA, CYAN };
 

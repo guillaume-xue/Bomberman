@@ -1,6 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <poll.h>
 #include "../common/config.h"
 #include "../common/func.h"
 #include "game_logic.h"
@@ -18,6 +19,6 @@ void *handle_client(void *arg);
 void init_multicast_socket(Partie *partie);
 void send_game_s_info(Partie *partie, int client_socket);
 void *game_communication(void *arg);
-
+void handle_client_poll(int client_socket);
 //void* handle_game_over(void* partie);
 #endif
