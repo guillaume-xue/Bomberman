@@ -3,9 +3,12 @@
 
 #include "../common/config.h"
 #include "../common/func.h"
+#include "game_logic.h"
 
 #define BOMB_TIMER 5
 #define EXPLOSION_RADIUS 1
+
+Partie parties[MAX_PARTIES];
 
 void init_mutex();
 void add_player(Partie *partie, int client_socket);
@@ -15,8 +18,6 @@ void *handle_client(void *arg);
 void init_multicast_socket(Partie *partie);
 void send_game_s_info(Partie *partie, int client_socket);
 void *game_communication(void *arg);
-
-void explode_bombe(int index_partie, int id_player);
 
 //void* handle_game_over(void* partie);
 #endif
