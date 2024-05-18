@@ -3,7 +3,7 @@
 
 #include "server.h"
 
-void setup_wall(int index_partie);
+void setup_wall(Partie *partie);
 int check_maj(GameMessage *game_message, Partie *partie);
 
 #endif //BOMBERMAN_GAME_LOGIC_H

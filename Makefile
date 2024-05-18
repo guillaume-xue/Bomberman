@@ -39,7 +39,7 @@ server :
 
 # Nettoyage des fichiers objets et exécutables
 clean:
-	rm -f $(CLIENT_OBJS) $(SERVER_OBJS) $(COMMON_DIR)/func.o
+	rm -f $(CLIENT_OBJS) $(SERVER_OBJS) $(COMMON_DIR)/func.o bin/client bin/server bin/client
 
 # Nettoyage complet
 distclean: clean

@@ -2,6 +2,8 @@
 
 int nb_partie = 0;
 
+Partie parties[MAX_PARTIES];
+
 pthread_mutex_t mutex_parties[MAX_PARTIES];
 pthread_mutex_t mutex_place = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_partie = PTHREAD_COND_INITIALIZER;
@@ -92,7 +94,7 @@ void init_multicast_socket(Partie *partie) {
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
 
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("wlp0s20f3");
   if (ifindex == 0) {
     perror("if_nametoindex");
     close(partie->send_sock);
@@ -187,7 +189,7 @@ void init_gridData(int index_partie) {
     grid->cases[FIELD_WIDTH - 1][0] = J2;
     grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
 
-    setup_wall(index_partie);
+    setup_wall(&parties[index_partie]);
 }
 
 void *handle_partie(void *arg) {
