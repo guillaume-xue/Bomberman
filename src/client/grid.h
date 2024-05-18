@@ -4,8 +4,8 @@
 #include <ncurses.h>
 #include <string.h>
 
-#include "config.h"
-#include "func.h"
+#include "../common/config.h"
+#include "../common/func.h"
 
 
 typedef struct board {

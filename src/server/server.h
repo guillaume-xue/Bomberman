@@ -1,8 +1,8 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "config.h"
-#include "func.h"
+#include "../common/config.h"
+#include "../common/func.h"
 
 #define BOMB_TIMER 5
 #define EXPLOSION_RADIUS 1
