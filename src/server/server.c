@@ -2,6 +2,8 @@
 
 int nb_partie = 0;
 
+Partie parties[MAX_PARTIES];
+
 pthread_mutex_t mutex_parties[MAX_PARTIES];
 pthread_mutex_t mutex_place = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_partie = PTHREAD_COND_INITIALIZER;
@@ -187,7 +189,7 @@ void init_gridData(int index_partie) {
     grid->cases[FIELD_WIDTH - 1][0] = J2;
     grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
 
-    setup_wall(index_partie);
+    setup_wall(&parties[index_partie]);
 }
 
 void *handle_partie(void *arg) {

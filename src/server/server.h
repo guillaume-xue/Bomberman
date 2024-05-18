@@ -8,8 +8,6 @@
 #define BOMB_TIMER 5
 #define EXPLOSION_RADIUS 1
 
-Partie parties[MAX_PARTIES];
-
 void init_mutex();
 void add_player(Partie *partie, int client_socket);
 void add_partie(int client_socket, int mode_jeu);
