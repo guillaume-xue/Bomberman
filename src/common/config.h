@@ -19,7 +19,7 @@
 #define SIZE_MSG 1024
 #define INTERVALLE_ENVOI 1
 #define TEXT_SIZE 255
-#define NB_WALLS 50
+#define NB_WALLS 30
 #define MAX_CLIENTS 4
 #define MAX_PARTIES 5
 #define MAX_CASES 50
@@ -32,14 +32,6 @@
 typedef enum ACTION { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3, BOMB = 4, QUIT = 5, NONE = 6, SUBMIT = 7 } ACTION;
 enum colors { GREEN, YELLOW, MAGENTA, CYAN };
 
-// Structure représentant une demande d'intégration à une partie
-typedef struct {
-  int CODEREQ; // Code de requête (1 ou 2 pour intégrer une partie, 3 ou 4 pour
-               // annoncer que le joueur est prêt à jouer)
-  int ID; // Identifiant du joueur (0 à 3)
-  int EQ; // Numéro de l'équipe du joueur (0 ou 1)
-} RequeteIntegration;
-
 typedef struct pos {
   int x;
   int y;
@@ -49,7 +41,7 @@ typedef struct pos {
 typedef struct {
   int CODEREQ; // 5: 1v3, 6: 2v2
   short ID;    // ID du joueur
-  int EQ;      // numéro de l'équipe du joueur si CODEREQ = 6
+  short EQ;      // numéro de l'équipe du joueur si CODEREQ = 6
   int NUM;     // numéro du message modulo 2^13
   int ACTION; // 0: ↑, 1: →, 2: ↓, 3: ←, 4: ↗, 5: ↘, 6: bomb, 7: undo request
 } GameMessage;
@@ -69,8 +61,8 @@ typedef enum {
 
 typedef struct {
   uint8_t CODEREQ;
-  uint8_t ID;
-  uint8_t EQ;
+  short ID;
+  short EQ;
 } EnteteMessage;
 
 // Structure représentant la grille de jeu

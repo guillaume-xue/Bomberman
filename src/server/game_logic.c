@@ -20,8 +20,6 @@ void clear_grid(Partie *partie, int x, int y) {
 bool is_bomb(Partie *partie, int x, int y) {
   return get_grid(partie, x, y) == BOMBE;
 }
-
-// Retourne vrai si la case est un mur cassable
 bool is_wall_breakable(Partie *partie, int x, int y){
   return get_grid(partie, x, y) == MUR_DESTRUCTIBLE;
 }

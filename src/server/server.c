@@ -397,6 +397,31 @@ void *game_communication(void *arg) {
       free(arg);
       exit(EXIT_FAILURE);
     }
+
+    // Vérification de fin de partie
+        int players_alive = 0;
+        int id_alive = 0;
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (!parties->players[i].dead) {
+                players_alive++;
+                id_alive = parties->players[i].id;
+            }
+        }
+
+        if (players_alive <= 1) {
+            TchatMessage end_msg = {0};
+            end_msg.entete.CODEREQ = (parties->mode_jeu == 1) ? 15 : 16; 
+            end_msg.entete.ID = id_alive;
+            // Gestion eq dans le cas des equipes sinon on ignore
+            end_msg.entete.EQ = (parties->mode_jeu == 2) ? id_alive : 0;
+            for (int i = 0; i < MAX_CLIENTS; i++) {
+                if (send(parties->clients_socket_tcp[i], &end_msg, sizeof(TchatMessage), 0) < 0) {
+                    perror("L'envoi du message de fin de partie a échoué");
+                }
+            }
+            //break;
+            exit(EXIT_SUCCESS);
+        }
     // sleep(INTERVALLE_ENVOI);
   }
   if(DEBUG){

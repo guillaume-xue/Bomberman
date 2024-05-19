@@ -5,7 +5,7 @@ int player_id; // id du joueur
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
 char* color;
-int game_mode = false;
+int game_mode = 0;
 GridData game_grid;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
@@ -199,7 +199,6 @@ void *receive_grid(void *arg) {
   return NULL;
 }
 
-// A faire dans le switch, afin de savoir si on envoie en TCP ou en UDP
 void *receive_tchat(void *arg) {
   TchatMessage tchat_message;
   while (1) {
@@ -213,6 +212,19 @@ void *receive_tchat(void *arg) {
       //close(tcp_socket); 
       pthread_exit(NULL); 
    }
+
+    //Vérification fin de partie 
+    if(tchat_message.entete.CODEREQ == 15 || tchat_message.entete.CODEREQ==16){
+        if (tchat_message.entete.CODEREQ == 15) {
+
+          printf("Fin de partie en mode solo. Le joueur %d a gagné.\n", tchat_message.entete.ID);
+          exit(EXIT_SUCCESS);
+        }
+        else{
+          printf("Fin de partie en mode équipe. L'équipe avec le joueur %d a gagné.\n", tchat_message.entete.ID);
+          exit(EXIT_SUCCESS);
+        }
+    }
     
     // On ajoute le message reçu à la conversation
     if (l->tchatbox.nb_lines == TCHATBOX_HEIGHT - 3) {
@@ -229,6 +241,7 @@ void *receive_tchat(void *arg) {
   }
   return NULL;
 }
+
 
 void launch_game() {
   memset(&game_grid, 0, sizeof(GridData));
@@ -253,6 +266,7 @@ void launch_game() {
     perror("Erreur lors de la création du thread pour la réception du tchat");
     exit(EXIT_FAILURE);
   }
+
 
   GameMessage my_action;
   TchatMessage my_msg;

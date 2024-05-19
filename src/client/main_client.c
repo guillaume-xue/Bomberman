@@ -10,8 +10,6 @@ int main() {
   im_ready(); // dernière étape avant de commencer la partie
 
   launch_game();
-
-  // Gestion fin de partie
-
+ 
   return 0;
 }
