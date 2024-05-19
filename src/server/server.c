@@ -313,29 +313,58 @@ void *handle_client(void *arg) {
 
 void *game_communication(void *arg) {
   int partie_id = *(int *)arg;
-
   GameMessage game_message;
+  FreqMessage freq_message;
+  memset(&freq_message, 0, sizeof(FreqMessage));
+  freq_message.entete.CODEREQ = 12;
+  freq_message.entete.ID = 0;
+  freq_message.entete.EQ = 0;
+  time_t start_time, current_time = 0;
+  time(&start_time);
+
   while (!(parties[partie_id].players[0].dead) || !(parties[partie_id].players[1].dead) || !(parties[partie_id].players[2].dead) || !(parties[partie_id].players[3].dead) ) {
 
     memset(&game_message, 0, sizeof(GameMessage));
-    if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage),
-             0) < 0) {
+    if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage), 0) < 0) {
       perror("La réception de la grille a échoué");
       free(arg);
       exit(EXIT_FAILURE);
     }
 
-    if (check_maj(&game_message, &parties[partie_id]) == -1)
+    freq_message.NUM = 0;
+    freq_message.NB = 0;
+    memset(freq_message.DATA, 0, sizeof(freq_message.DATA));
+
+    if (check_maj(&game_message, &parties[partie_id], &freq_message) == -1)
       continue;
 
-    if (sendto(parties[partie_id].send_sock, &parties[partie_id].grid,
-               sizeof(GridData), 0,
-               (struct sockaddr *)&parties[partie_id].multicast_addr,
-               sizeof(parties[partie_id].multicast_addr)) < 0) {
-      perror("L'envoi de la grille a échoué");
-      free(arg);
-      exit(EXIT_FAILURE);
+    time(&current_time);
+    if (difftime(current_time, start_time) >= 1.0) { // Toutes les secondes
+      if (sendto(parties[partie_id].send_sock,
+                 &parties[partie_id].grid,
+                 sizeof(GridData), 0,
+                 (struct sockaddr *)&parties[partie_id].multicast_addr,
+                 sizeof(parties[partie_id].multicast_addr)) < 0) {
+        perror("L'envoi de la grille a échoué");
+        free(arg);
+        exit(EXIT_FAILURE);
+      }
+      start_time = current_time;
+    } else { // Toutes les 10 millisecondes
+
+      if (sendto(parties[partie_id].send_sock,
+                 &freq_message,
+                 sizeof(FreqMessage), 0,
+                 (struct sockaddr *)&parties[partie_id].multicast_addr,
+                 sizeof(parties[partie_id].multicast_addr)) < 0) {
+        perror("L'envoi de quelque partie de la grille a échoué");
+        free(arg);
+        exit(EXIT_FAILURE);
+      }
+
+      usleep(10000); // Pause de 10 millisecondes
     }
+
     // sleep(INTERVALLE_ENVOI);
   }
   if(DEBUG){

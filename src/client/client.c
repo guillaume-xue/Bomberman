@@ -7,6 +7,7 @@ int tcp_socket; // socket pour la connexion TCP avec la partie
 char* color;
 int game_mode = false;
 GridData game_grid;
+FreqMessage freq_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
@@ -17,16 +18,6 @@ socklen_t difflen = sizeof(diffuseur_addr);
 pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
 
 line *l;
-
-void receive_gmsg(int client_socket) {
-  GameMessage received_message;
-  memset(&received_message, 0, sizeof(GameMessage));
-  // Réception du message depuis le client
-  if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
-    perror("La réception du message a échoué");
-    exit(EXIT_FAILURE);
-  }
-}
 
 void connexion_to_tcp_server() {
   tcp_socket = socket(AF_INET6, SOCK_STREAM, 0);
@@ -199,6 +190,31 @@ void *receive_grid(void *arg) {
   return NULL;
 }
 
+void setgrid(int x, int y, int val){
+  game_grid.cases[x][y] = val;
+}
+
+void *receive_freq(void *arg) {
+  ssize_t recu;
+  while (1) {
+    recu = recv(udp_socket, &freq_message, sizeof(FreqMessage), 0);
+    if (recu < 0) {
+      perror("La réception de la fréquence a échoué");
+      exit(EXIT_FAILURE);
+    }
+    if (recu == 0) {
+        printf("Connexion fermée par le serveur.\n");
+        break;
+    }
+    for (int i = 0; i < freq_message.NB; ++i) {
+      setgrid(freq_message.DATA[i+1], freq_message.DATA[i], freq_message.DATA[i + 2]);
+    }
+  }
+  //close(udp_socket);
+  //exit(EXIT_SUCCESS);
+  return NULL;
+}
+
 // A faire dans le switch, afin de savoir si on envoie en TCP ou en UDP
 void *receive_tchat(void *arg) {
   TchatMessage tchat_message;
@@ -232,6 +248,7 @@ void *receive_tchat(void *arg) {
 
 void launch_game() {
   memset(&game_grid, 0, sizeof(GridData));
+  memset(&freq_message, 0, sizeof(FreqMessage));
 
   if (recvfrom(udp_socket, &game_grid, sizeof(GridData), 0,
                (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
@@ -245,6 +262,13 @@ void launch_game() {
   if (pthread_create(&thread_recv_grid, NULL, receive_grid, NULL) != 0) {
     perror(
         "Erreur lors de la création du thread pour la réception de la grille");
+    exit(EXIT_FAILURE);
+  }
+
+  pthread_t thread_recv_freq;
+  if (pthread_create(&thread_recv_freq, NULL, receive_freq, NULL) != 0) {
+    perror(
+        "Erreur lors de la création du thread pour la réception de la fréquence");
     exit(EXIT_FAILURE);
   }
 
@@ -287,10 +311,9 @@ void launch_game() {
         }
       }
     }
-    usleep(10000); // 10ms
     print_grid(game_grid, l);
   }
-
+  usleep(10000);
   clear_grid();
 }
 

@@ -251,9 +251,7 @@ ACTION control(line *l) {
 
 int print_grid(GridData gridData, line *l) {
   board *b = grid_to_board(gridData);
-
   refresh_game(b, l);
-
   return 0;
 }
 

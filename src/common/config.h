@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <time.h>
 
-#define TCP_PORT 8081
+#define TCP_PORT 8080
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
 #define INTERVALLE_ENVOI 1
@@ -80,6 +80,13 @@ typedef struct {
   uint8_t height;
   uint8_t cases[MAX_CASES][MAX_CASES];
 } GridData;
+
+typedef struct {
+  EnteteMessage entete;
+  uint16_t NUM;
+  uint8_t NB;
+  uint8_t DATA[MAX_CASES];
+} FreqMessage;
 
 typedef struct {
   int code_req;
