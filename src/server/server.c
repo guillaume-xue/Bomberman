@@ -104,20 +104,27 @@ void init_multicast_socket(Partie *partie) {
   partie->multicast_addr.sin6_scope_id = ifindex;
 }
 
-
 void *handle_tchat_clientX(void *arg) {
   data *d = (data *)arg;
-
   Partie *partie = &parties[d->index_partie];
-  int x = d->index_partie;
   TchatMessage msg;
-  while (!(parties[x].players[0].dead) || !(parties[x].players[1].dead) || !(parties[x].players[2].dead) || !(parties[x].players[3].dead) ) {
+
+  while (!(partie->players[0].dead) || !(partie->players[1].dead) ||
+         !(partie->players[2].dead) || !(partie->players[3].dead)) {
     memset(&msg, 0, sizeof(TchatMessage));
-    if (recv(partie->clients_socket_tcp[d->id], &msg, sizeof(TchatMessage), 0) <
-        0) {
+    ssize_t recv_size =
+        recv(partie->clients_socket_tcp[d->id], &msg, sizeof(TchatMessage), 0);
+    if (recv_size < 0) {
       perror("handle_tchat_clientX : La réception du message a échoué");
       free(arg);
       exit(EXIT_FAILURE);
+    } else if (recv_size == 0) {
+      printf("Client %d s'est déconnecté de la partie %d.\nIl est considéré "
+             "comme mort.\n",
+             d->id, d->index_partie);
+      partie->players[d->id].dead = true;
+      free(arg);
+      return NULL;
     }
 
     bool sept = (msg.entete.CODEREQ == 7);
@@ -127,23 +134,23 @@ void *handle_tchat_clientX(void *arg) {
         if (send(partie->clients_socket_tcp[i], &msg, sizeof(TchatMessage), 0) <
             0) {
           perror("L'envoi du message a échoué");
-           free(arg);
+          free(arg);
           exit(EXIT_FAILURE);
         }
       }
     } else { // à son mate, déjà vérif s'il a un mate
       int mate = (msg.entete.ID + 1) % 4;
-      if (send(partie->clients_socket_tcp[mate], &msg, sizeof(TchatMessage), 0) <
-          0) {
+      if (send(partie->clients_socket_tcp[mate], &msg, sizeof(TchatMessage),
+               0) < 0) {
         perror("L'envoi du message a échoué");
-         free(arg);
-     
+        free(arg);
+
         exit(EXIT_FAILURE);
       }
     }
   }
 
-  if(DEBUG){
+  if (DEBUG) {
     printf(" Fin gestion du client ");
   }
 
@@ -165,7 +172,7 @@ void *handle_tchat(void *arg) {
     pthread_join(thread_tchat_clients[i], NULL);
   }
 
-  if(DEBUG){
+  if (DEBUG) {
     printf(" Fin chat ");
   }
   free(arg);
@@ -173,22 +180,22 @@ void *handle_tchat(void *arg) {
 }
 
 void init_gridData(int index_partie) {
-    GridData *grid = &parties[index_partie].grid;
+  GridData *grid = &parties[index_partie].grid;
 
-    memset(&grid->entete, 0, sizeof(grid->entete));
-    grid->entete.CODEREQ = 11;
-    grid->NUM = 0; // Car premier message de la partie
+  memset(&grid->entete, 0, sizeof(grid->entete));
+  grid->entete.CODEREQ = 11;
+  grid->NUM = 0; // Car premier message de la partie
 
-    grid->width = FIELD_WIDTH + 2 ; // 2 lignes de "-" + 1 ligne de chat
-    grid->height = FIELD_HEIGHT + 2;   // 2 colonnes de "|"
+  grid->width = FIELD_WIDTH + 2;   // 2 lignes de "-" + 1 ligne de chat
+  grid->height = FIELD_HEIGHT + 2; // 2 colonnes de "|"
 
-    memset(grid->cases, CASE_VIDE, MAX_CASES * MAX_CASES * sizeof(u_int8_t));
-    grid->cases[0][0] = J0;
-    grid->cases[0][FIELD_HEIGHT - 1] = J1;
-    grid->cases[FIELD_WIDTH - 1][0] = J2;
-    grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
+  memset(grid->cases, CASE_VIDE, MAX_CASES * MAX_CASES * sizeof(u_int8_t));
+  grid->cases[0][0] = J0;
+  grid->cases[0][FIELD_HEIGHT - 1] = J1;
+  grid->cases[FIELD_WIDTH - 1][0] = J2;
+  grid->cases[FIELD_WIDTH - 1][FIELD_HEIGHT - 1] = J3;
 
-    setup_wall(&parties[index_partie]);
+  setup_wall(&parties[index_partie]);
 }
 
 void *handle_partie(void *arg) {
@@ -214,7 +221,7 @@ void *handle_partie(void *arg) {
              (struct sockaddr *)&partie->multicast_addr,
              sizeof(partie->multicast_addr)) < 0) {
     perror("L'envoi de la grille a échoué");
-    free(arg); 
+    free(arg);
     exit(EXIT_FAILURE);
   }
 
@@ -231,8 +238,9 @@ void *handle_partie(void *arg) {
   pthread_join(thread_grid, NULL);
   pthread_join(thread_tchat_communication, NULL);
 
-  if(DEBUG){
-    printf(" Lancement de toute les gestions de parties partie : %d ",index_partie );
+  if (DEBUG) {
+    printf(" Lancement de toute les gestions de parties partie : %d ",
+           index_partie);
   }
   free(arg);
   return NULL;
@@ -247,7 +255,7 @@ void *handle_client(void *arg) {
   // Réception du message depuis le client
   if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
     perror("La réception du message a échoué");
-     free(arg);
+    free(arg);
     exit(EXIT_FAILURE);
   }
 
@@ -261,7 +269,7 @@ void *handle_client(void *arg) {
 
   if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
     perror("La réception du message a échoué");
-     free(arg);
+    free(arg);
     exit(EXIT_FAILURE);
   }
 
@@ -295,7 +303,7 @@ void *handle_client(void *arg) {
   if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
     pthread_t thread_partie;
     int *x = malloc(sizeof(int));
-    if(x==NULL){
+    if (x == NULL) {
       perror("Erreur debut de partie");
       free(arg);
       exit(EXIT_FAILURE);
@@ -303,8 +311,8 @@ void *handle_client(void *arg) {
     *x = index_partie;
     pthread_create(&thread_partie, NULL, handle_partie, x);
     pthread_join(thread_partie, NULL);
-  }
-  else pthread_mutex_unlock(&mutex_parties[index_partie]);
+  } else
+    pthread_mutex_unlock(&mutex_parties[index_partie]);
 
   free(arg);
   return NULL;
@@ -312,71 +320,74 @@ void *handle_client(void *arg) {
 
 // Version poll
 void handle_client_poll(int client_socket) {
-    EnteteMessage received_message;
-    memset(&received_message, 0, sizeof(EnteteMessage));
+  EnteteMessage received_message;
+  memset(&received_message, 0, sizeof(EnteteMessage));
 
-    if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
-        perror("poll : La réception du message a échoué");
-        return;
+  if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
+    perror("poll : La réception du message a échoué");
+    return;
+  }
+
+  int index_partie = join_or_create(client_socket, received_message.CODEREQ);
+
+  GameMessage client_ready;
+  memset(&client_ready, 0, sizeof(GameMessage));
+
+  if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
+    perror("poll s : La réception du message a échoué");
+    return;
+  }
+
+  char buf[SIZE_MSG];
+  memset(buf, 0, sizeof(buf));
+
+  if (client_ready.EQ == -1) {
+    snprintf(buf, SIZE_MSG,
+             "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
+             "en mode : SOLO (1v3).",
+             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+             index_partie);
+  } else {
+    snprintf(buf, SIZE_MSG,
+             "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
+             "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
+             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
+             client_ready.EQ, index_partie);
+  }
+
+  // printf("%s\n", buf);
+
+  pthread_mutex_lock(&mutex_parties[index_partie]);
+  printf("Il reste %d places dans la partie n.%d %s\n",
+         MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
+         (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0)
+             ? "\n\033[31m\nNous sommes au complet, la partie peut commencer "
+               "!!\033[0m\n"
+             : "\n");
+
+  if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
+    pthread_t thread_partie;
+    int *x = malloc(sizeof(int));
+    if (x == NULL) {
+      perror("Erreur début de partie");
+      return;
     }
-
-    int index_partie = join_or_create(client_socket, received_message.CODEREQ);
-
-    GameMessage client_ready;
-    memset(&client_ready, 0, sizeof(GameMessage));
-
-    if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
-        perror("poll s : La réception du message a échoué");
-        return;
-    }
-
-    char buf[SIZE_MSG];
-    memset(buf, 0, sizeof(buf));
-
-    if (client_ready.EQ == -1) {
-        snprintf(buf, SIZE_MSG,
-                 "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
-                 "en mode : SOLO (1v3).",
-                 id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
-                 index_partie);
-    } else {
-        snprintf(buf, SIZE_MSG,
-                 "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
-                 "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
-                 id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
-                 client_ready.EQ, index_partie);
-    }
-
-    //printf("%s\n", buf);
-
-    pthread_mutex_lock(&mutex_parties[index_partie]);
-    printf("Il reste %d places dans la partie n.%d %s\n",
-           MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
-           (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0)
-               ? "\n\033[31m\nNous sommes au complet, la partie peut commencer "
-                 "!!\033[0m\n"
-               : "\n");
-
-    if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
-        pthread_t thread_partie;
-        int *x = malloc(sizeof(int));
-        if(x == NULL) {
-            perror("Erreur début de partie");
-            return;
-        }
-        *x = index_partie;
-        pthread_create(&thread_partie, NULL, handle_partie, x);
-        pthread_join(thread_partie, NULL);
-    } else {
-        pthread_mutex_unlock(&mutex_parties[index_partie]);
-    }
+    *x = index_partie;
+    pthread_create(&thread_partie, NULL, handle_partie, x);
+    pthread_join(thread_partie, NULL);
+  } else {
+    pthread_mutex_unlock(&mutex_parties[index_partie]);
+  }
 }
 
 void *game_communication(void *arg) {
   int partie_id = *(int *)arg;
 
   GameMessage game_message;
-  while (!(parties[partie_id].players[0].dead) || !(parties[partie_id].players[1].dead) || !(parties[partie_id].players[2].dead) || !(parties[partie_id].players[3].dead) ) {
+  while (!(parties[partie_id].players[0].dead) ||
+         !(parties[partie_id].players[1].dead) ||
+         !(parties[partie_id].players[2].dead) ||
+         !(parties[partie_id].players[3].dead)) {
 
     memset(&game_message, 0, sizeof(GameMessage));
     if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage),
@@ -399,33 +410,34 @@ void *game_communication(void *arg) {
     }
 
     // Vérification de fin de partie
-        int players_alive = 0;
-        int id_alive = 0;
-        for (int i = 0; i < MAX_CLIENTS; i++) {
-            if (!parties->players[i].dead) {
-                players_alive++;
-                id_alive = parties->players[i].id;
-            }
-        }
+    int players_alive = 0;
+    int id_alive = 0;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+      if (!parties->players[i].dead) {
+        players_alive++;
+        id_alive = parties->players[i].id;
+      }
+    }
 
-        if (players_alive <= 1) {
-            TchatMessage end_msg = {0};
-            end_msg.entete.CODEREQ = (parties->mode_jeu == 1) ? 15 : 16; 
-            end_msg.entete.ID = id_alive;
-            // Gestion eq dans le cas des equipes sinon on ignore
-            end_msg.entete.EQ = (parties->mode_jeu == 2) ? id_alive : 0;
-            for (int i = 0; i < MAX_CLIENTS; i++) {
-                if (send(parties->clients_socket_tcp[i], &end_msg, sizeof(TchatMessage), 0) < 0) {
-                    perror("L'envoi du message de fin de partie a échoué");
-                }
-            }
-            //break;
-            exit(EXIT_SUCCESS);
+    if (players_alive <= 1) {
+      TchatMessage end_msg = {0};
+      end_msg.entete.CODEREQ = (parties->mode_jeu == 1) ? 15 : 16;
+      end_msg.entete.ID = id_alive;
+      // Gestion eq dans le cas des equipes sinon on ignore
+      end_msg.entete.EQ = (parties->mode_jeu == 2) ? id_alive : 0;
+      for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (send(parties->clients_socket_tcp[i], &end_msg, sizeof(TchatMessage),
+                 0) < 0) {
+          perror("L'envoi du message de fin de partie a échoué");
         }
+      }
+      // break;
+      exit(EXIT_SUCCESS);
+    }
     // sleep(INTERVALLE_ENVOI);
   }
-  if(DEBUG){
-    printf(" Fin de la partie %d le gagnant est : ",partie_id );
+  if (DEBUG) {
+    printf(" Fin de la partie %d le gagnant est : ", partie_id);
   }
 
   free(arg);

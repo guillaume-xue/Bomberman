@@ -4,7 +4,7 @@
 int player_id; // id du joueur
 int team_number;
 int tcp_socket; // socket pour la connexion TCP avec la partie
-char* color;
+char *color;
 int game_mode = 0;
 GridData game_grid;
 
@@ -14,9 +14,7 @@ struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 struct sockaddr_in6 diffuseur_addr; // adresse de la partie en UDP
 socklen_t difflen = sizeof(diffuseur_addr);
 
-pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
-
-line *l;
+line *l; // structure pour la gestion de l'interface
 
 void connexion_to_tcp_server() {
   tcp_socket = socket(AF_INET6, SOCK_STREAM, 0);
@@ -175,17 +173,15 @@ void *receive_grid(void *arg) {
     if (recu < 0) {
       perror("La réception de la grille a échoué");
       exit(EXIT_FAILURE);
+    } else if (recu == 0) {
+      printf("Connexion fermée par le serveur.\n");
+      break;
+    } else {
+      // alarm(TIMEOUT_SECONDS);
     }
-    else if (recu == 0) {
-        printf("Connexion fermée par le serveur.\n");
-        break;
-    }
-    else {
-        //alarm(TIMEOUT_SECONDS);
-    } 
   }
-  //close(udp_socket);
-  //exit(EXIT_SUCCESS);
+  // close(udp_socket);
+  // exit(EXIT_SUCCESS);
   return NULL;
 }
 
@@ -199,31 +195,36 @@ void *receive_tchat(void *arg) {
       } else {
         printf("Le client s'est déconnecté.\n");
       }
-      //close(tcp_socket); 
-      pthread_exit(NULL); 
-   }
-
-    //Vérification fin de partie 
-    if(tchat_message.entete.CODEREQ == 15 || tchat_message.entete.CODEREQ==16){
-        if (tchat_message.entete.CODEREQ == 15) {
-
-          printf("Fin de partie en mode solo. Le joueur %d a gagné.\n", tchat_message.entete.ID);
-          exit(EXIT_SUCCESS);
-        }
-        else{
-          printf("Fin de partie en mode équipe. L'équipe avec le joueur %d a gagné.\n", tchat_message.entete.ID);
-          exit(EXIT_SUCCESS);
-        }
+      // close(tcp_socket);
+      pthread_exit(NULL);
     }
-    
+
+    // Vérification fin de partie
+    if (tchat_message.entete.CODEREQ == 15 ||
+        tchat_message.entete.CODEREQ == 16) {
+      if (tchat_message.entete.CODEREQ == 15) {
+        printf("Fin de partie en mode solo. Le joueur %d a gagné.\n",
+               tchat_message.entete.ID);
+      } else {
+        printf("Fin de partie en mode équipe. L'équipe avec le joueur %d a "
+               "gagné.\n",
+               tchat_message.entete.ID);
+      }
+      close(tcp_socket);
+      clear_grid();
+      exit(EXIT_SUCCESS);
+    }
+
     // On ajoute le message reçu à la conversation
     if (l->tchatbox.nb_lines == TCHATBOX_HEIGHT - 3) {
       for (int i = 0; i < TCHATBOX_HEIGHT - 3; i++) {
         strcpy(l->tchatbox.conv[i], l->tchatbox.conv[i + 1]);
       }
-      snprintf(l->tchatbox.conv[TCHATBOX_HEIGHT - 4], TEXT_SIZE, "%d : %s", tchat_message.entete.ID, tchat_message.DATA + 1);
+      snprintf(l->tchatbox.conv[TCHATBOX_HEIGHT - 4], TEXT_SIZE, "%d : %s",
+               tchat_message.entete.ID, tchat_message.DATA + 1);
     } else {
-      snprintf(l->tchatbox.conv[l->tchatbox.i], TEXT_SIZE, "%d : %s", tchat_message.entete.ID, tchat_message.DATA + 1);
+      snprintf(l->tchatbox.conv[l->tchatbox.i], TEXT_SIZE, "%d : %s",
+               tchat_message.entete.ID, tchat_message.DATA + 1);
       l->tchatbox.i++;
       l->tchatbox.nb_lines++;
       eraser(l);
@@ -231,7 +232,6 @@ void *receive_tchat(void *arg) {
   }
   return NULL;
 }
-
 
 void launch_game() {
   memset(&game_grid, 0, sizeof(GridData));
@@ -243,7 +243,7 @@ void launch_game() {
   }
 
   l = init_grid(game_grid, player_id, game_mode);
-  
+
   pthread_t thread_recv_grid;
   if (pthread_create(&thread_recv_grid, NULL, receive_grid, NULL) != 0) {
     perror(
@@ -256,7 +256,6 @@ void launch_game() {
     perror("Erreur lors de la création du thread pour la réception du tchat");
     exit(EXIT_FAILURE);
   }
-
 
   GameMessage my_action;
   TchatMessage my_msg;
