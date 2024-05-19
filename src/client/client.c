@@ -18,16 +18,6 @@ pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
 
 line *l;
 
-void receive_gmsg(int client_socket) {
-  GameMessage received_message;
-  memset(&received_message, 0, sizeof(GameMessage));
-  // Réception du message depuis le client
-  if (recv(client_socket, &received_message, sizeof(GameMessage), 0) < 0) {
-    perror(" recv_mess : La réception du message a échoué");
-    exit(EXIT_FAILURE);
-  }
-}
-
 void connexion_to_tcp_server() {
   tcp_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (tcp_socket == -1) {
