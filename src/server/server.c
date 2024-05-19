@@ -119,6 +119,10 @@ void *handle_tchat_clientX(void *arg) {
       free(arg);
       exit(EXIT_FAILURE);
     } else if (recv_size == 0) {
+
+      // FAIRE UNE VERIF DE SI LES 4 CLIENTS SONT PARTIS
+      // SI OUI CLEAN PARTIE ET SORTIR DE LA BOUCLE
+
       printf("Client %d s'est déconnecté de la partie %d.\nIl est considéré "
              "comme mort.\n",
              d->id, d->index_partie);
