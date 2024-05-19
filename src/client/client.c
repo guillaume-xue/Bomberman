@@ -169,21 +169,32 @@ void im_ready() {
            color, player_id, "\033[0m", team_number);
 }
 
-void *receive_grid(void *arg) {
-  ssize_t recu;
+void update_grid_freq(FreqGrid *freq_grid) {
+  for (int i = 0; i < freq_grid->NB; ++i) {
+    game_grid.cases[freq_grid->DATA[i*3 + 1]][freq_grid->DATA[i*3]] = freq_grid->DATA[i*3 + 2];
+  }
+}
+
+void *receive_grid_freq(void *arg) {
+  uint16_t buffer[sizeof(FreqGrid) > sizeof(GridData) ? sizeof(FreqGrid) : sizeof(GridData)];
+
   while (1) {
-    recu = recv(udp_socket, &game_grid, sizeof(GridData), 0);
-    if (recu < 0) {
-      perror("La réception de la grille a échoué");
+    pthread_mutex_lock(&mutex_partie);
+    memset(buffer, 0, sizeof(buffer));
+    int recv_len = recvfrom(udp_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&diffuseur_addr, &difflen);
+    if (recv_len < 0) {
+      perror("La réception des données a échoué");
       exit(EXIT_FAILURE);
     }
-    else if (recu == 0) {
-        printf("Connexion fermée par le serveur.\n");
-        break;
+    // Vérifiez le type de message reçu (FreqGrid ou GridData)
+    EnteteMessage *header = (EnteteMessage *)buffer;
+    if (header->CODEREQ == 11) {
+      // Traiter comme GridData
+      memcpy(&game_grid, buffer, sizeof(GridData));
+    } else if (header->CODEREQ == 12) {
+      update_grid_freq((FreqGrid *)buffer);
     }
-    else {
-        //alarm(TIMEOUT_SECONDS);
-    } 
+    pthread_mutex_unlock(&mutex_partie);
   }
   //close(udp_socket);
   //exit(EXIT_SUCCESS);
@@ -257,11 +268,11 @@ void launch_game() {
   }
 
   l = init_grid(game_grid, player_id, game_mode);
-  
-  pthread_t thread_recv_grid;
-  if (pthread_create(&thread_recv_grid, NULL, receive_grid, NULL) != 0) {
+
+  pthread_t thread_recv_grid_freq;
+  if (pthread_create(&thread_recv_grid_freq, NULL, receive_grid_freq, NULL) != 0) {
     perror(
-        "Erreur lors de la création du thread pour la réception de la grille");
+            "Erreur lors de la création du thread pour la réception de la grille");
     exit(EXIT_FAILURE);
   }
 
@@ -312,6 +323,7 @@ void launch_game() {
       }
     }
     print_grid(game_grid, l);
+    usleep(100000);
   }
   usleep(10000);
   clear_grid();

@@ -326,21 +326,6 @@ pos *init_position(GridData gridData) {
   return p;
 }
 
-bool check_end(GridData gridData){
-  for (int i = 0; i < FIELD_WIDTH; i++) {
-        for (int j = 0; j < FIELD_HEIGHT; j++) {
-            char c = get_grid_char(gridData, i, j);
-            if ((joueur_id == 1 && c == '1') ||
-                (joueur_id == 2 && c == '2') ||
-                (joueur_id == 3 && c == '3') ||
-                (joueur_id == 4 && c == '4')) {
-                return false; // Le joueur est présent sur le terrain
-            }
-        }
-    }
-    return true; // Le joueur n'est pas présent sur le terrain
-}
-
 int clear_grid() {
   clear();
   refresh();
