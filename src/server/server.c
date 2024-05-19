@@ -382,29 +382,6 @@ void *game_communication_freq(void *arg) {
   return NULL;
 }
 
-void *game_communication(void *arg) {
-  int partie_id = *(int *)arg;
-
-  while (!(parties[partie_id].players[0].dead) || !(parties[partie_id].players[1].dead) || !(parties[partie_id].players[2].dead) || !(parties[partie_id].players[3].dead) ) {
-
-    if (sendto(parties[partie_id].send_sock, &parties[partie_id].grid,
-               sizeof(GridData), 0,
-               (struct sockaddr *)&parties[partie_id].multicast_addr,
-               sizeof(parties[partie_id].multicast_addr)) < 0) {
-      perror("L'envoi de la grille a échoué");
-      free(arg);
-      exit(EXIT_FAILURE);
-    }
-    sleep(1);
-  }
-  if(DEBUG){
-    printf(" Fin de la partie %d le gagnant est : ",partie_id );
-  }
-
-  free(arg);
-  return NULL;
-}
-
 void init_mutex() {
   for (int i = 0; i < MAX_PARTIES; ++i) {
     pthread_mutex_init(&mutex_parties[i], NULL);

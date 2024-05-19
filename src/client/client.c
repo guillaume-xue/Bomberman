@@ -201,31 +201,6 @@ void *receive_grid_freq(void *arg) {
   return NULL;
 }
 
-void setgrid(int x, int y, int val){
-  game_grid.cases[x][y] = val;
-}
-
-void *receive_freq(void *arg) {
-  ssize_t recu;
-  while (1) {
-    recu = recv(udp_socket, &freq_message, sizeof(FreqMessage), 0);
-    if (recu < 0) {
-      perror("La réception de la fréquence a échoué");
-      exit(EXIT_FAILURE);
-    }
-    if (recu == 0) {
-        printf("Connexion fermée par le serveur.\n");
-        break;
-    }
-    for (int i = 0; i < freq_message.NB; ++i) {
-      setgrid(freq_message.DATA[i+1], freq_message.DATA[i], freq_message.DATA[i + 2]);
-    }
-  }
-  //close(udp_socket);
-  //exit(EXIT_SUCCESS);
-  return NULL;
-}
-
 // A faire dans le switch, afin de savoir si on envoie en TCP ou en UDP
 void *receive_tchat(void *arg) {
   TchatMessage tchat_message;
@@ -273,13 +248,6 @@ void launch_game() {
   if (pthread_create(&thread_recv_grid_freq, NULL, receive_grid_freq, NULL) != 0) {
     perror(
             "Erreur lors de la création du thread pour la réception de la grille");
-    exit(EXIT_FAILURE);
-  }
-
-  pthread_t thread_recv_freq;
-  if (pthread_create(&thread_recv_freq, NULL, receive_freq, NULL) != 0) {
-    perror(
-        "Erreur lors de la création du thread pour la réception de la fréquence");
     exit(EXIT_FAILURE);
   }
 

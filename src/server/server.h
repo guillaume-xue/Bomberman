@@ -15,7 +15,6 @@ int join_or_create(int client_socket, int mode_jeu);
 void *handle_client(void *arg);
 void init_multicast_socket(Partie *partie);
 void send_game_s_info(Partie *partie, int client_socket);
-void *game_communication(void *arg);
 void *game_communication_freq(void *arg);
 
 //void* handle_game_over(void* partie);
