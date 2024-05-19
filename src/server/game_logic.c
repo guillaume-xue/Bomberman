@@ -219,7 +219,7 @@ void move_player(Partie *partie, int id, int dx, int dy) {
   int new_x = p.x + dx;
   int new_y = p.y + dy;
 
-  if (is_movable(partie->partie_id, new_x, new_y) == false)
+  if (is_movable(partie, new_x, new_y) == false)
     return;
 
   if (partie->grid.cases[new_x][new_y] == MUR_DESTRUCTIBLE)
