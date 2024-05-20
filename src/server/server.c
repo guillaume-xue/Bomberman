@@ -13,7 +13,6 @@ void add_partie(int client_socket, int mode_jeu) {
 
   parties[i].mode_jeu = mode_jeu;
   parties[i].clients_socket_tcp[parties[i].nb_joueurs] = client_socket;
-  parties[i].clients_playing[parties[i].nb_joueurs] = parties[i].nb_joueurs;
   parties[i].partie_id = i;
 
   init_multicast_socket(&parties[i]);
@@ -22,7 +21,6 @@ void add_partie(int client_socket, int mode_jeu) {
 
 void add_player(Partie *partie, int client_socket) {
   partie->clients_socket_tcp[partie->nb_joueurs] = client_socket;
-  partie->clients_playing[partie->nb_joueurs] = partie->nb_joueurs;
   partie->nb_joueurs++;
 
   send_game_s_info(partie, client_socket);
@@ -116,6 +114,13 @@ void init_multicast_socket(Partie *partie) {
   partie->multicast_addr.sin6_scope_id = ifindex;
 }
 
+void free_partie(Partie *partie) {
+  for (int i = 0; i < MAX_CLIENTS; i++) {
+    close(partie->clients_socket_tcp[i]);
+  }
+  close(partie->send_sock);
+}
+
 void *handle_tchat_clientX(void *arg) {
   data *d = (data *)arg;
   Partie *partie = &parties[d->index_partie];
@@ -131,16 +136,13 @@ void *handle_tchat_clientX(void *arg) {
       free(arg);
       exit(EXIT_FAILURE);
     } else if (recv_size == 0) {
-
-      // FAIRE UNE VERIF DE SI LES 4 CLIENTS SONT PARTIS
-      // SI OUI CLEAN PARTIE ET SORTIR DE LA BOUCLE
-
       player *deco = &partie->players[d->id];
 
       printf("Client %d s'est déconnecté de la partie %d.\nIl est considéré "
-             "comme mort.\n",
-             d->id, d->index_partie);
+             "comme mort.\nIl reste %d joueurs.\n\n",
+              d->id, d->index_partie, partie->nb_joueurs - 1);
       deco->dead = true;
+      partie->nb_joueurs--;
       partie->grid.cases[deco->p.x][deco->p.y] = CASE_VIDE;
 
       if (sendto(partie->send_sock, &partie->grid, sizeof(GridData), 0,
@@ -152,7 +154,32 @@ void *handle_tchat_clientX(void *arg) {
         exit(EXIT_FAILURE);
       }
 
-      close(partie->clients_socket_tcp[d->id]);
+      if (partie->nb_joueurs == 1) {
+        int gagnant = -1;
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+          if (!partie->players[i].dead) {
+            gagnant = i;
+            break;
+          }
+        }
+
+        TchatMessage end_msg = {0};
+        end_msg.env = htons((((partie->mode_jeu == 1) ? 15 : 16) & 0x1FFF)
+                            << 3 | ((gagnant & 0x3) << 1) |
+                            (((partie->mode_jeu == 2) ? gagnant : 0) & 0x1));
+
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+          if (send(partie->clients_socket_tcp[i], &end_msg, sizeof(TchatMessage),
+                   0) < 0) {
+            perror("L'envoi du message de fin de partie a échoué");
+          }
+        }
+
+        printf("Fin de la partie %d, le gagnant est : %d\n\n", d->index_partie,
+               gagnant);
+                            
+      }
+
       free(arg);
       return NULL;
     }
@@ -260,7 +287,7 @@ void *handle_partie(void *arg) {
     free(arg);
     exit(EXIT_FAILURE);
   }
-  
+
   pthread_t thread_grid_freq;
   int *y = malloc(sizeof(int));
   *y = index_partie;

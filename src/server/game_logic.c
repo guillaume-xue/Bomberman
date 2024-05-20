@@ -12,6 +12,12 @@ void set_grid(Partie *partie, int x, int y, ContenuCase c) {
   partie->grid.cases[x][y] = c;
 }
 
+void player_dying(Partie *partie, int id) {
+  partie->players[id].dead = true;
+  partie->nb_joueurs--;
+  // set_grid(partie, partie->players[id].p.x, partie->players[id].p.y, CASE_VIDE);
+}
+
 void clear_grid(Partie *partie, int x, int y) {
   set_grid(partie, x, y, CASE_VIDE);
 }
@@ -97,7 +103,7 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
       // On tue les joueurs
       if (is_player(partie, i, j)) {
         int id = get_grid(partie, i, j) - 5;
-        partie->players[id].dead = true;
+        player_dying(partie, id);
         set_grid(partie, i, j, EXPLOSION);
         freq_grid->DATA[freq_grid->NB] = j;
         freq_grid->DATA[freq_grid->NB+1] = i;
@@ -107,25 +113,25 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
     }
   }
 
+  // rajout des 4 effets d'explosions sur les pointes
   // Pointe en haut
   if (by - 2 >= 0 &&
       (is_wall_breakable(partie, bx, by - 2) || is_vide(partie, bx, by - 2)) &&
       !(is_wall_nd(partie, bx, by - 1))) {
     if (is_player(partie, bx, by - 2)) {
       int id = get_grid(partie, bx, by - 2) - 5;
-      partie->players[id].dead = true;
+      player_dying(partie, id);
     }
     set_grid(partie, bx, by - 2, EXPLOSION);
   }
 
-  // rajout des 4 effets d'explosions sur les pointes
   // Pointe en bas
   if (by + 2 < partie->grid.height &&
       (is_wall_breakable(partie, bx, by + 2) || is_vide(partie, bx, by + 2)) &&
       !(is_wall_nd(partie, bx, by + 1))) {
     if (is_player(partie, bx, by + 2)) {
       int id = get_grid(partie, bx, by - 2) - 5;
-      partie->players[id].dead = true;
+      player_dying(partie, id);
     }
     set_grid(partie, bx, by + 2, EXPLOSION);
   }
@@ -135,7 +141,7 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
       !(is_wall_nd(partie, bx - 1, by))) {
     if (is_player(partie, bx - 2, by)) {
       int id = get_grid(partie, bx, by - 2) - 5;
-      partie->players[id].dead = true;
+      player_dying(partie, id);
     }
     set_grid(partie, bx - 2, by, EXPLOSION);
   }
@@ -145,7 +151,7 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
       !(is_wall_nd(partie, bx + 1, by))) {
     if (is_player(partie, bx + 2, by)) {
       int id = get_grid(partie, bx, by - 2) - 5;
-      partie->players[id].dead = true;
+      player_dying(partie, id);
     }
     set_grid(partie, bx + 2, by, EXPLOSION);
   }

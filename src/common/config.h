@@ -132,8 +132,6 @@ typedef struct {
 
   int clients_socket_tcp[MAX_CLIENTS]; // sockets des clients, pour communiquer
                                        // avec eux
-  int clients_playing[MAX_CLIENTS];    // id des clients, afin de savoir qui est
-                                       // encore connecté dans la partie
 } Partie;
 
 // Structure représentant TchatMessage
