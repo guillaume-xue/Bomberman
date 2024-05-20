@@ -260,12 +260,7 @@ void *handle_partie(void *arg) {
     free(arg);
     exit(EXIT_FAILURE);
   }
-
-  //  pthread_t thread_grid;
-  //  int *x = malloc(sizeof(int));
-  //  *x = index_partie;
-  //  pthread_create(&thread_grid, NULL, game_communication, x);
-
+  
   pthread_t thread_grid_freq;
   int *y = malloc(sizeof(int));
   *y = index_partie;
