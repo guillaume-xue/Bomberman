@@ -7,6 +7,7 @@ int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
 int game_mode = 0;
 GridData game_grid;
+FreqMessage freq_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
@@ -14,7 +15,9 @@ struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
 struct sockaddr_in6 diffuseur_addr; // adresse de la partie en UDP
 socklen_t difflen = sizeof(diffuseur_addr);
 
-line *l; // structure pour la gestion de l'interface
+pthread_mutex_t mutex_partie = PTHREAD_MUTEX_INITIALIZER;
+
+line *l;
 
 void connexion_to_tcp_server() {
   tcp_socket = socket(AF_INET6, SOCK_STREAM, 0);
@@ -148,10 +151,10 @@ void im_ready() {
   GameMessage ready;
   memset(&ready, 0, sizeof(GameMessage));
 
-  ready.entete = htons(((game_mode+2) & 0x1FFF) <<3 
-  | (player_id & 0x3) <<1 
+  ready.entete = htons(((game_mode+2) & 0x1FFF) <<3
+  | (player_id & 0x3) <<1
   |  (((game_mode == 2) ? team_number : -1) & 0X1 ));
-  
+
   // ready.CODEREQ = game_mode + 2;
   // ready.ID = player_id;
   // ready.EQ = (game_mode == 2) ? team_number : -1;
@@ -169,17 +172,32 @@ void im_ready() {
            color, player_id, "\033[0m", team_number);
 }
 
-void *receive_grid(void *arg) {
-  ssize_t recu;
+void update_grid_freq(FreqGrid *freq_grid) {
+  for (int i = 0; i < freq_grid->NB; ++i) {
+    game_grid.cases[freq_grid->DATA[i*3 + 1]][freq_grid->DATA[i*3]] = freq_grid->DATA[i*3 + 2];
+  }
+}
+
+void *receive_grid_freq(void *arg) {
+  uint16_t buffer[sizeof(FreqGrid) > sizeof(GridData) ? sizeof(FreqGrid) : sizeof(GridData)];
+
   while (1) {
-    recu = recv(udp_socket, &game_grid, sizeof(GridData), 0);
-    if (recu < 0) {
-      perror("La réception de la grille a échoué");
+    pthread_mutex_lock(&mutex_partie);
+    memset(buffer, 0, sizeof(buffer));
+    int recv_len = recvfrom(udp_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&diffuseur_addr, &difflen);
+    if (recv_len < 0) {
+      perror("La réception des données a échoué");
       exit(EXIT_FAILURE);
-    } else if (recu == 0) {
-      printf("Connexion fermée par le serveur.\n");
-      break;
     }
+    // Vérifiez le type de message reçu (FreqGrid ou GridData)
+    EnteteMessage *header = (EnteteMessage *)buffer;
+    if (header->CODEREQ == 11) {
+      // Traiter comme GridData
+      memcpy(&game_grid, buffer, sizeof(GridData));
+    } else if (header->CODEREQ == 12) {
+      update_grid_freq((FreqGrid *)buffer);
+    }
+    pthread_mutex_unlock(&mutex_partie);
   }
   return NULL;
 }
@@ -239,6 +257,7 @@ void *receive_tchat(void *arg) {
 
 void launch_game() {
   memset(&game_grid, 0, sizeof(GridData));
+  memset(&freq_message, 0, sizeof(FreqMessage));
 
   if (recvfrom(udp_socket, &game_grid, sizeof(GridData), 0,
                (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
@@ -248,10 +267,10 @@ void launch_game() {
 
   l = init_grid(game_grid, player_id, game_mode);
 
-  pthread_t thread_recv_grid;
-  if (pthread_create(&thread_recv_grid, NULL, receive_grid, NULL) != 0) {
+  pthread_t thread_recv_grid_freq;
+  if (pthread_create(&thread_recv_grid_freq, NULL, receive_grid_freq, NULL) != 0) {
     perror(
-        "Erreur lors de la création du thread pour la réception de la grille");
+            "Erreur lors de la création du thread pour la réception de la grille");
     exit(EXIT_FAILURE);
   }
 
@@ -270,7 +289,7 @@ void launch_game() {
         break;
       } else if (a == SUBMIT) {
         memset(&my_msg, 0, sizeof(TchatMessage));
-        
+
         my_msg.env = htons((atoi(&l->data[0])& 0x1FFF) << 3
         | ((player_id & 0x3) << 1)
         | (((game_mode == 2) ? team_number : -1) & 0x1));
@@ -285,7 +304,7 @@ void launch_game() {
       } else {
         memset(&my_action, 0, sizeof(GameMessage));
         my_action.entete = htons((((game_mode+4) & 0x1FFF) << 3)
-        | ((player_id & 0x3 ) <<1 ) 
+        | ((player_id & 0x3 ) <<1 )
         | (((game_mode == 2) ? team_number : -1) & 0x1) );
         my_action.num_action = htons((0 & 0x1FFF) << 3 | (a & 0x7));
 
@@ -296,10 +315,10 @@ void launch_game() {
         }
       }
     }
-    usleep(10000); // 10ms
     print_grid(game_grid, l);
+    usleep(100000);
   }
-
+  usleep(10000);
   clear_grid();
 }
 

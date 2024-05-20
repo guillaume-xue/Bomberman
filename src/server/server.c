@@ -234,17 +234,23 @@ void *handle_partie(void *arg) {
     exit(EXIT_FAILURE);
   }
 
-  pthread_t thread_grid;
-  int *x = malloc(sizeof(int));
-  *x = index_partie;
-  pthread_create(&thread_grid, NULL, game_communication, x);
+//  pthread_t thread_grid;
+//  int *x = malloc(sizeof(int));
+//  *x = index_partie;
+//  pthread_create(&thread_grid, NULL, game_communication, x);
 
-  pthread_t thread_tchat_communication;
+  pthread_t thread_grid_freq;
   int *y = malloc(sizeof(int));
   *y = index_partie;
-  pthread_create(&thread_tchat_communication, NULL, handle_tchat, y);
+  pthread_create(&thread_grid_freq, NULL, game_communication_freq, y);
 
-  pthread_join(thread_grid, NULL);
+  pthread_t thread_tchat_communication;
+  int *z = malloc(sizeof(int));
+  *z = index_partie;
+  pthread_create(&thread_tchat_communication, NULL, handle_tchat, z);
+
+  //pthread_join(thread_grid, NULL);
+  pthread_join(thread_grid_freq, NULL);
   pthread_join(thread_tchat_communication, NULL);
 
   if (DEBUG) {
@@ -395,16 +401,30 @@ void handle_client_poll(int client_socket) {
   }
 }
 
-void *game_communication(void *arg) {
+
+void *game_communication_freq(void *arg) {
   int partie_id = *(int *)arg;
 
+  FreqGrid freq_grid;
+  memset(&freq_grid, 0, sizeof(FreqGrid));
+  time_t start_time, current_time = 0;
+
+  time(&start_time);
+  freq_grid.entete.CODEREQ = 12;
+  freq_grid.entete.ID = 0;
+  freq_grid.entete.EQ = 0;
+
   GameMessage game_message;
-  while (!(parties[partie_id].players[0].dead) ||
-         !(parties[partie_id].players[1].dead) ||
-         !(parties[partie_id].players[2].dead) ||
-         !(parties[partie_id].players[3].dead)) {
+
+  while (!(parties[partie_id].players[0].dead) || !(parties[partie_id].players[1].dead) || !(parties[partie_id].players[2].dead) || !(parties[partie_id].players[3].dead) ) {
+    time(&current_time);
+
+    freq_grid.NUM = 0;
+    freq_grid.NB = 0;
+    memset(&freq_grid.DATA, 0, sizeof(freq_grid.DATA));
 
     memset(&game_message, 0, sizeof(GameMessage));
+
     if (recv(parties[partie_id].send_sock, &game_message, sizeof(GameMessage),
              0) < 0) {
       perror("La réception de la grille a échoué");
@@ -424,13 +444,28 @@ void *game_communication(void *arg) {
     if (check_maj(&game_message, &parties[partie_id]) == -1)
       continue;
 
-    if (sendto(parties[partie_id].send_sock, &parties[partie_id].grid,
-               sizeof(GridData), 0,
-               (struct sockaddr *)&parties[partie_id].multicast_addr,
-               sizeof(parties[partie_id].multicast_addr)) < 0) {
-      perror("L'envoi de la grille a échoué");
-      free(arg);
-      exit(EXIT_FAILURE);
+    freq_grid.NB = freq_grid.NB / 3;
+    time(&current_time);
+    if (difftime(current_time, start_time) >= 1.0) { // Toutes les secondes
+      if (sendto(parties[partie_id].send_sock, &parties[partie_id].grid,
+                 sizeof(GridData), 0,
+                 (struct sockaddr *)&parties[partie_id].multicast_addr,
+                 sizeof(parties[partie_id].multicast_addr)) < 0) {
+        perror("L'envoi de la grille a échoué");
+        free(arg);
+        exit(EXIT_FAILURE);
+      }
+      start_time = current_time;
+    }else {
+      if (sendto(parties[partie_id].send_sock, &freq_grid,
+                 sizeof(FreqGrid), 0,
+                 (struct sockaddr *)&parties[partie_id].multicast_addr,
+                 sizeof(parties[partie_id].multicast_addr)) < 0) {
+        perror("L'envoi de la grille a échoué");
+        free(arg);
+        exit(EXIT_FAILURE);
+      }
+      usleep(10000); // 100ms
     }
 
     // Vérification de fin de partie
@@ -446,7 +481,7 @@ void *game_communication(void *arg) {
     if (players_alive <= 1) {
       TchatMessage end_msg = {0};
       end_msg.env = htons( (((parties->mode_jeu == 1) ? 15 : 16) & 0x1FFF) << 3
-                        | ((id_alive & 0x3)<<1) 
+                        | ((id_alive & 0x3)<<1)
                         | (((parties->mode_jeu == 2) ? id_alive : 0) & 0x1) ) ;
 
       for (int i = 0; i < MAX_CLIENTS; i++) {

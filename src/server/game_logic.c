@@ -1,8 +1,9 @@
 #include "game_logic.h"
 
-typedef struct bomb_arg {
-  Partie *partie;
-  int id_player;
+typedef struct bomb_arg{
+    Partie *partie;
+    int id_player;
+    FreqGrid *freq_grid;
 } bomb_arg;
 
 int get_grid(Partie *partie, int x, int y) { return partie->grid.cases[x][y]; }
@@ -75,7 +76,7 @@ void setup_wall(Partie *partie) {
 }
 
 // Fait exploser la bombe
-void explode_bombe(Partie *partie, int id_player) {
+void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
 
   int bx = partie->players[id_player].b.x;
   int by = partie->players[id_player].b.y;
@@ -88,12 +89,20 @@ void explode_bombe(Partie *partie, int id_player) {
           j < partie->grid.height &&
           (is_wall_breakable(partie, i, j) || is_vide(partie, i, j))) {
         set_grid(partie, i, j, EXPLOSION);
+        freq_grid->DATA[freq_grid->NB] = j;
+        freq_grid->DATA[freq_grid->NB+1] = i;
+        freq_grid->DATA[freq_grid->NB+2] = EXPLOSION;
+        freq_grid->NB += 3;
       }
       // On tue les joueurs
       if (is_player(partie, i, j)) {
         int id = get_grid(partie, i, j) - 5;
         partie->players[id].dead = true;
         set_grid(partie, i, j, EXPLOSION);
+        freq_grid->DATA[freq_grid->NB] = j;
+        freq_grid->DATA[freq_grid->NB+1] = i;
+        freq_grid->DATA[freq_grid->NB+2] = EXPLOSION;
+        freq_grid->NB += 3;
       }
     }
   }
@@ -156,6 +165,10 @@ void explode_bombe(Partie *partie, int id_player) {
          j <= partie->players[id_player].b.y + 1; j++) {
       if (is_exploding(partie, i, j) || is_bomb(partie, i, j)) {
         clear_grid(partie, i, j);
+        freq_grid->DATA[freq_grid->NB] = j;
+        freq_grid->DATA[freq_grid->NB+1] = i;
+        freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
+        freq_grid->NB += 3;
       }
     }
   }
@@ -175,7 +188,7 @@ void explode_bombe(Partie *partie, int id_player) {
   }
 
   partie->players[id_player].b.set = false;
-  
+
   if (sendto(partie->send_sock, &partie->grid, sizeof(GridData), 0,
              (struct sockaddr *)&partie->multicast_addr,
              sizeof(partie->multicast_addr)) < 0) {
@@ -189,14 +202,14 @@ void *explose_handler(void *arg) {
   sleep(3);
   Partie *partie = ((bomb_arg *)arg)->partie;
   int id_player = ((bomb_arg *)arg)->id_player;
-  explode_bombe(partie, id_player);
+  FreqGrid *freq_grid = ((bomb_arg *)arg)->freq_grid;
+  explode_bombe(partie, id_player, freq_grid);
   free(arg);
   return NULL;
 }
 
-int place_bomb(Partie *partie, int id_player, pos p) {
-  if (partie->players[id_player].b.set == true)
-    return 1; // Si le joueur a déjà une bombe
+int place_bomb(Partie *partie, int id_player, pos p, FreqGrid *freq_grid) {
+  if (partie->players[id_player].b.set == true) return 1; // Si le joueur a déjà une bombe
 
   partie->players[id_player].b.x = p.x;
   partie->players[id_player].b.y = p.y;
@@ -205,6 +218,7 @@ int place_bomb(Partie *partie, int id_player, pos p) {
   bomb_arg *arg = malloc(sizeof(bomb_arg));
   arg->partie = partie;
   arg->id_player = id_player;
+  arg->freq_grid = freq_grid;
   partie->players[id_player].b.set = true;
   if (pthread_create(&thread, NULL, explose_handler, arg) != 0) {
     fprintf(stderr, "Erreur lors de la création du thread.\n");
@@ -232,7 +246,7 @@ void move_player(Partie *partie, int id, int dx, int dy) {
 }
 
 // On vérifie si l'action du joueur est legit
-int check_maj(GameMessage *game_message, Partie *partie) {
+int check_maj(GameMessage *game_message, Partie *partie, FreqGrid *freq_grid) {
   int id = game_message->ID - 1;
   // Si le joueur est mort, on ne fait rien
   if (partie->players[id].dead == true) {
@@ -240,31 +254,56 @@ int check_maj(GameMessage *game_message, Partie *partie) {
   }
   ACTION action = game_message->ACTION;
 
+  int x = 0;
+  int y = 0;
+
   pos p = partie->players[id].p;
   switch (action) {
-  case UP:
-    move_player(partie, id, 0, -1);
-    break;
-  case DOWN:
-    move_player(partie, id, 0, 1);
-    break;
-  case LEFT:
-    move_player(partie, id, -1, 0);
-    break;
-  case RIGHT:
-    move_player(partie, id, 1, 0);
-    break;
-  case BOMB:
-    if (place_bomb(partie, id, p) == 1)
+    case UP:
+      x = 0; y = -1;
+      break;
+    case DOWN:
+      x = 0; y = 1;
+      break;
+    case LEFT:
+      x = -1; y = 0;
+      break;// détecter si un joueur est touché par l'explosion
+    case RIGHT:
+      x = 1; y = 0;
+      break;
+    case BOMB:
+      if(place_bomb(partie, id, p, freq_grid) == 1) return -1;
+      break;
+    case QUIT:
+      break;
+    default:
       return -1;
-    break;
-  case QUIT:
-    break;
-  default:
-    return -1;
   }
+
+  if (is_movable(partie, p.x + x, p.y + y) == false){
+    return -1;
+  } else {
+    partie->players[id].p.y = p.y + y;
+    partie->players[id].p.x = p.x + x;
+    partie->grid.cases[p.x][p.y] = CASE_VIDE;
+    freq_grid->DATA[freq_grid->NB] = p.y;
+    freq_grid->DATA[freq_grid->NB+1] = p.x;
+    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
+    freq_grid->NB += 3;
+    partie->grid.cases[p.x+x][p.y+y] = id + 5;
+    freq_grid->DATA[freq_grid->NB] = p.y + y;
+    freq_grid->DATA[freq_grid->NB+1] = p.x + x;
+    freq_grid->DATA[freq_grid->NB+2] = id + 5;
+    freq_grid->NB += 3;
+
+  }
+
   if (partie->players[id].b.set == true) {
     set_grid(partie, partie->players[id].b.x, partie->players[id].b.y, BOMBE);
+    freq_grid->DATA[freq_grid->NB] = partie->players[id].b.y;
+    freq_grid->DATA[freq_grid->NB+1] = partie->players[id].b.x;
+    freq_grid->DATA[freq_grid->NB+2] = BOMBE;
+    freq_grid->NB += 3;
   }
   return 0;
 }
