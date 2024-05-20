@@ -71,7 +71,7 @@ typedef struct {
   EnteteMessage entete;
   uint16_t NUM;
   uint8_t NB;
-  uint8_t DATA[128];
+  uint8_t DATA[255];
 } FreqGrid;
 
 // Structure représentant la grille de jeu

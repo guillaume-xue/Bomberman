@@ -468,8 +468,10 @@ void *game_communication_freq(void *arg) {
 
     game_message.ACTION = resultat_a & 0x7;
 
+    pthread_mutex_lock(&mutex_parties[partie_id]);
     if (check_maj(&game_message, &parties[partie_id], &freq_grid) == -1)
       continue;
+    pthread_mutex_unlock(&mutex_parties[partie_id]);
 
     freq_grid.NB = freq_grid.NB / 3;
     time(&current_time);

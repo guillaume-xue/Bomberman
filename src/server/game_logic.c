@@ -39,8 +39,7 @@ bool is_vide(Partie *partie, int x, int y) {
 
 bool is_player(Partie *partie, int x, int y) {
   for (int i = 5; i <= 8; ++i) {
-    if (get_grid(partie, x, y) == i)
-      return true;
+    if (get_grid(partie, x, y) == i) return true;
   }
   return false;
 }
@@ -53,6 +52,13 @@ bool is_movable(Partie *partie, int x, int y) {
 
 bool is_exploding(Partie *partie, int x, int y) {
   return get_grid(partie, x, y) == EXPLOSION;
+}
+
+void add_freq(FreqGrid *freq_grid, int y, int x, ContenuCase c) {
+  freq_grid->DATA[freq_grid->NB] = y;
+  freq_grid->DATA[freq_grid->NB + 1] = x;
+  freq_grid->DATA[freq_grid->NB + 2] = c;
+  freq_grid->NB += 3;
 }
 
 // Place les murs sur la grille
@@ -89,20 +95,14 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
           j < partie->grid.height &&
           (is_wall_breakable(partie, i, j) || is_vide(partie, i, j))) {
         set_grid(partie, i, j, EXPLOSION);
-        freq_grid->DATA[freq_grid->NB] = j;
-        freq_grid->DATA[freq_grid->NB+1] = i;
-        freq_grid->DATA[freq_grid->NB+2] = EXPLOSION;
-        freq_grid->NB += 3;
+        add_freq(freq_grid, j, i, EXPLOSION);
       }
       // On tue les joueurs
       if (is_player(partie, i, j)) {
         int id = get_grid(partie, i, j) - 5;
         partie->players[id].dead = true;
         set_grid(partie, i, j, EXPLOSION);
-        freq_grid->DATA[freq_grid->NB] = j;
-        freq_grid->DATA[freq_grid->NB+1] = i;
-        freq_grid->DATA[freq_grid->NB+2] = EXPLOSION;
-        freq_grid->NB += 3;
+        add_freq(freq_grid, j, i, EXPLOSION);
       }
     }
   }
@@ -111,11 +111,15 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
   if (by - 2 >= 0 &&
       (is_wall_breakable(partie, bx, by - 2) || is_vide(partie, bx, by - 2)) &&
       !(is_wall_nd(partie, bx, by - 1))) {
-    if (is_player(partie, bx, by - 2)) {
-      int id = get_grid(partie, bx, by - 2) - 5;
-      partie->players[id].dead = true;
-    }
     set_grid(partie, bx, by - 2, EXPLOSION);
+    add_freq(freq_grid, by - 2, bx, EXPLOSION);
+  }
+
+  if (is_player(partie, bx, by - 2)) {
+    int id = get_grid(partie, bx, by - 2) - 5;
+    partie->players[id].dead = true;
+    set_grid(partie, bx, by - 2, EXPLOSION);
+    add_freq(freq_grid, by - 2, bx, EXPLOSION);
   }
 
   // rajout des 4 effets d'explosions sur les pointes
@@ -123,41 +127,49 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
   if (by + 2 < partie->grid.height &&
       (is_wall_breakable(partie, bx, by + 2) || is_vide(partie, bx, by + 2)) &&
       !(is_wall_nd(partie, bx, by + 1))) {
-    if (is_player(partie, bx, by + 2)) {
-      int id = get_grid(partie, bx, by - 2) - 5;
-      partie->players[id].dead = true;
-    }
     set_grid(partie, bx, by + 2, EXPLOSION);
+    add_freq(freq_grid, by + 2, bx, EXPLOSION);
   }
+
+  if (is_player(partie, bx, by + 2)) {
+    int id = get_grid(partie, bx, by + 2) - 5;
+    partie->players[id].dead = true;
+    set_grid(partie, bx, by + 2, EXPLOSION);
+    add_freq(freq_grid, by + 2, bx, EXPLOSION);
+  }
+
   // Pointe à gauche
   if (bx - 2 >= 0 &&
       (is_wall_breakable(partie, bx - 2, by) || is_vide(partie, bx - 2, by)) &&
       !(is_wall_nd(partie, bx - 1, by))) {
-    if (is_player(partie, bx - 2, by)) {
-      int id = get_grid(partie, bx, by - 2) - 5;
-      partie->players[id].dead = true;
-    }
     set_grid(partie, bx - 2, by, EXPLOSION);
+    add_freq(freq_grid, by, bx - 2, EXPLOSION);
   }
+
+  if (is_player(partie, bx - 2, by)) {
+    int id = get_grid(partie, bx, by - 2) - 5;
+    partie->players[id].dead = true;
+    set_grid(partie, bx - 2, by, EXPLOSION);
+    add_freq(freq_grid, by, bx - 2, EXPLOSION);
+  }
+
   // Pointe à droite
   if (bx + 2 < partie->grid.width &&
       (is_wall_breakable(partie, bx + 2, by) || is_vide(partie, bx + 2, by)) &&
       !(is_wall_nd(partie, bx + 1, by))) {
-    if (is_player(partie, bx + 2, by)) {
-      int id = get_grid(partie, bx, by - 2) - 5;
-      partie->players[id].dead = true;
-    }
     set_grid(partie, bx + 2, by, EXPLOSION);
+    add_freq(freq_grid, by, bx + 2, EXPLOSION);
   }
 
-  if (sendto(partie->send_sock, &partie->grid, sizeof(GridData), 0,
-             (struct sockaddr *)&partie->multicast_addr,
-             sizeof(partie->multicast_addr)) < 0) {
-    perror("L'envoi de la grille a échoué");
-    exit(EXIT_FAILURE);
+  if (is_player(partie, bx + 2, by)) {
+    int id = get_grid(partie, bx, by + 2) - 5;
+    partie->players[id].dead = true;
+    set_grid(partie, bx + 2, by, EXPLOSION);
+    add_freq(freq_grid, by, bx + 2, EXPLOSION);
   }
 
   sleep(1); // Temps d'affichage de l'explosion
+
   // On efface la bombe et les explosions
   for (int i = partie->players[id_player].b.x - 1;
        i <= partie->players[id_player].b.x + 1; i++) {
@@ -165,10 +177,7 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
          j <= partie->players[id_player].b.y + 1; j++) {
       if (is_exploding(partie, i, j) || is_bomb(partie, i, j)) {
         clear_grid(partie, i, j);
-        freq_grid->DATA[freq_grid->NB] = j;
-        freq_grid->DATA[freq_grid->NB+1] = i;
-        freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
-        freq_grid->NB += 3;
+        add_freq(freq_grid, j, i, CASE_VIDE);
       }
     }
   }
@@ -176,41 +185,25 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
   // Effacer les 4 effets d'explosions sur les pointes
   if (by - 2 >= 0 && is_exploding(partie, bx, by - 2)) {
     clear_grid(partie, bx, by - 2);
-    freq_grid->DATA[freq_grid->NB] = by - 2;
-    freq_grid->DATA[freq_grid->NB+1] = bx;
-    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
-    freq_grid->NB += 3;
+    add_freq(freq_grid, by - 2, bx, CASE_VIDE);
   }
+
   if (by + 2 < partie->grid.height && is_exploding(partie, bx, by + 2)) {
     clear_grid(partie, bx, by + 2);
-    freq_grid->DATA[freq_grid->NB] = by + 2;
-    freq_grid->DATA[freq_grid->NB+1] = bx;
-    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
-    freq_grid->NB += 3;
+    add_freq(freq_grid, by + 2, bx, CASE_VIDE);
   }
+
   if (bx - 2 >= 0 && is_exploding(partie, bx - 2, by)) {
     clear_grid(partie, bx - 2, by);
-    freq_grid->DATA[freq_grid->NB] = by;
-    freq_grid->DATA[freq_grid->NB+1] = bx - 2;
-    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
-    freq_grid->NB += 3;
+    add_freq(freq_grid, by, bx - 2, CASE_VIDE);
   }
+
   if (bx + 2 < partie->grid.width && is_exploding(partie, bx + 2, by)) {
     clear_grid(partie, bx + 2, by);
-    freq_grid->DATA[freq_grid->NB] = by;
-    freq_grid->DATA[freq_grid->NB+1] = bx + 2;
-    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
-    freq_grid->NB += 3;
+    add_freq(freq_grid, by, bx + 2, CASE_VIDE);
   }
 
   partie->players[id_player].b.set = false;
-
-  if (sendto(partie->send_sock, &partie->grid, sizeof(GridData), 0,
-             (struct sockaddr *)&partie->multicast_addr,
-             sizeof(partie->multicast_addr)) < 0) {
-    perror("L'envoi de la grille a échoué");
-    exit(EXIT_FAILURE);
-  }
 }
 
 // Fonction appelée par le thread pour faire exploser la bombe
@@ -302,24 +295,15 @@ int check_maj(GameMessage *game_message, Partie *partie, FreqGrid *freq_grid) {
     partie->players[id].p.y = p.y + y;
     partie->players[id].p.x = p.x + x;
     partie->grid.cases[p.x][p.y] = CASE_VIDE;
-    freq_grid->DATA[freq_grid->NB] = p.y;
-    freq_grid->DATA[freq_grid->NB+1] = p.x;
-    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
-    freq_grid->NB += 3;
+    add_freq(freq_grid, p.y, p.x, CASE_VIDE);
     partie->grid.cases[p.x+x][p.y+y] = id + 5;
-    freq_grid->DATA[freq_grid->NB] = p.y + y;
-    freq_grid->DATA[freq_grid->NB+1] = p.x + x;
-    freq_grid->DATA[freq_grid->NB+2] = id + 5;
-    freq_grid->NB += 3;
+    add_freq(freq_grid, p.y+y, p.x+x, id + 5);
 
   }
 
   if (partie->players[id].b.set == true) {
     set_grid(partie, partie->players[id].b.x, partie->players[id].b.y, BOMBE);
-    freq_grid->DATA[freq_grid->NB] = partie->players[id].b.y;
-    freq_grid->DATA[freq_grid->NB+1] = partie->players[id].b.x;
-    freq_grid->DATA[freq_grid->NB+2] = BOMBE;
-    freq_grid->NB += 3;
+    add_freq(freq_grid, partie->players[id].b.y, partie->players[id].b.x, BOMBE);
   }
   return 0;
 }
