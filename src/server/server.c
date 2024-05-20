@@ -114,13 +114,6 @@ void init_multicast_socket(Partie *partie) {
   partie->multicast_addr.sin6_scope_id = ifindex;
 }
 
-void free_partie(Partie *partie) {
-  for (int i = 0; i < MAX_CLIENTS; i++) {
-    close(partie->clients_socket_tcp[i]);
-  }
-  close(partie->send_sock);
-}
-
 void *handle_tchat_clientX(void *arg) {
   data *d = (data *)arg;
   Partie *partie = &parties[d->index_partie];
@@ -139,10 +132,9 @@ void *handle_tchat_clientX(void *arg) {
       player *deco = &partie->players[d->id];
 
       printf("Client %d s'est déconnecté de la partie %d.\nIl est considéré "
-             "comme mort.\nIl reste %d joueurs.\n\n",
-              d->id, d->index_partie, partie->nb_joueurs - 1);
+             "comme mort.\n\n",
+             d->id, d->index_partie);
       deco->dead = true;
-      partie->nb_joueurs--;
       partie->grid.cases[deco->p.x][deco->p.y] = CASE_VIDE;
 
       if (sendto(partie->send_sock, &partie->grid, sizeof(GridData), 0,
@@ -155,29 +147,18 @@ void *handle_tchat_clientX(void *arg) {
       }
 
       if (partie->nb_joueurs == 1) {
-        int gagnant = -1;
-        for (int i = 0; i < MAX_CLIENTS; i++) {
-          if (!partie->players[i].dead) {
-            gagnant = i;
-            break;
-          }
-        }
-
         TchatMessage end_msg = {0};
-        end_msg.env = htons((((partie->mode_jeu == 1) ? 15 : 16) & 0x1FFF)
-                            << 3 | ((gagnant & 0x3) << 1) |
-                            (((partie->mode_jeu == 2) ? gagnant : 0) & 0x1));
+        end_msg.env = htons(
+            (((partie->mode_jeu == 1) ? 15 : 16) & 0x1FFF) << 3 |
+            ((partie->players[0].id & 0x3) << 1) |
+            (((partie->mode_jeu == 2) ? partie->players[0].id : 0) & 0x1));
 
         for (int i = 0; i < MAX_CLIENTS; i++) {
-          if (send(partie->clients_socket_tcp[i], &end_msg, sizeof(TchatMessage),
-                   0) < 0) {
+          if (send(partie->clients_socket_tcp[i], &end_msg,
+                   sizeof(TchatMessage), 0) < 0) {
             perror("L'envoi du message de fin de partie a échoué");
           }
         }
-
-        printf("Fin de la partie %d, le gagnant est : %d\n\n", d->index_partie,
-               gagnant);
-                            
       }
 
       free(arg);
