@@ -176,15 +176,31 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
   // Effacer les 4 effets d'explosions sur les pointes
   if (by - 2 >= 0 && is_exploding(partie, bx, by - 2)) {
     clear_grid(partie, bx, by - 2);
+    freq_grid->DATA[freq_grid->NB] = by - 2;
+    freq_grid->DATA[freq_grid->NB+1] = bx;
+    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
+    freq_grid->NB += 3;
   }
   if (by + 2 < partie->grid.height && is_exploding(partie, bx, by + 2)) {
     clear_grid(partie, bx, by + 2);
+    freq_grid->DATA[freq_grid->NB] = by + 2;
+    freq_grid->DATA[freq_grid->NB+1] = bx;
+    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
+    freq_grid->NB += 3;
   }
   if (bx - 2 >= 0 && is_exploding(partie, bx - 2, by)) {
     clear_grid(partie, bx - 2, by);
+    freq_grid->DATA[freq_grid->NB] = by;
+    freq_grid->DATA[freq_grid->NB+1] = bx - 2;
+    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
+    freq_grid->NB += 3;
   }
   if (bx + 2 < partie->grid.width && is_exploding(partie, bx + 2, by)) {
     clear_grid(partie, bx + 2, by);
+    freq_grid->DATA[freq_grid->NB] = by;
+    freq_grid->DATA[freq_grid->NB+1] = bx + 2;
+    freq_grid->DATA[freq_grid->NB+2] = CASE_VIDE;
+    freq_grid->NB += 3;
   }
 
   partie->players[id_player].b.set = false;
