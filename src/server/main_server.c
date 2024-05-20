@@ -83,6 +83,8 @@ int main() {
     server_addr.sin6_port = htons(TCP_PORT);
     inet_pton(AF_INET6, "::1", &server_addr.sin6_addr);
 
+    init_mutex();
+
     if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("La liaison a échoué");
         close(server_socket);
