@@ -129,7 +129,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("eth0");
+  int ifindex = if_nametoindex("en0");
   if (ifindex == 0)
     perror("if_nametoindex");
 
@@ -213,10 +213,11 @@ void *receive_tchat(void *arg) {
       if (recu < 0) {
         perror("Tchat client : La réception du message a échoué");
       } else {
-        printf("Le client s'est déconnecté.\n");
+        printf("Le serveur a fermé la connexion.\n");
       }
-      // close(tcp_socket);
-      pthread_exit(NULL);
+      close(tcp_socket);
+      clear_grid();
+      exit(EXIT_FAILURE);
     }
 
     uint16_t result = ntohs(tchat_message.env);

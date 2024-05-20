@@ -62,10 +62,10 @@ void send_game_s_info(Partie *partie, int client_socket) {
   //                         : (id % 2) + 1;
 
   // if(DEBUG) printf("send_game id : %d",id);
-  // server_message.info = htons( ((codereq & 0x1FFF) << 3) 
+  // server_message.info = htons( ((codereq & 0x1FFF) << 3)
   // | (id & 0x3) << 1
   // | (eq & 0x1) );
-  
+
   server_message.code_req = (parties[partie->partie_id].mode_jeu == 1) ? 9 : 10;
 
   server_message.id = parties[partie->partie_id].nb_joueurs;
@@ -106,7 +106,7 @@ void init_multicast_socket(Partie *partie) {
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
 
-  int ifindex = if_nametoindex("eth0");
+  int ifindex = if_nametoindex("en0");
   if (ifindex == 0) {
     perror("if_nametoindex");
     close(partie->send_sock);
@@ -135,17 +135,32 @@ void *handle_tchat_clientX(void *arg) {
       // FAIRE UNE VERIF DE SI LES 4 CLIENTS SONT PARTIS
       // SI OUI CLEAN PARTIE ET SORTIR DE LA BOUCLE
 
+      player *deco = &partie->players[d->id];
+
       printf("Client %d s'est déconnecté de la partie %d.\nIl est considéré "
              "comme mort.\n",
              d->id, d->index_partie);
-      partie->players[d->id].dead = true;
+      deco->dead = true;
+      partie->grid.cases[deco->p.x][deco->p.y] = CASE_VIDE;
+
+      if (sendto(partie->send_sock, &partie->grid, sizeof(GridData), 0,
+                 (struct sockaddr *)&partie->multicast_addr,
+                 sizeof(partie->multicast_addr)) < 0) {
+        perror("L'envoi de la grille a échoué");
+        close(partie->clients_socket_tcp[d->id]);
+        free(arg);
+        exit(EXIT_FAILURE);
+      }
+
+      close(partie->clients_socket_tcp[d->id]);
       free(arg);
       return NULL;
     }
 
     uint16_t result = ntohs(msg.env);
     msg.entete.CODEREQ = (result >> 3) & 0x1FFF;
-    msg.entete.ID = (result >> 1) & 0x3;;
+    msg.entete.ID = (result >> 1) & 0x3;
+    ;
     msg.entete.EQ = result & 0x1;
 
     bool sept = (msg.entete.CODEREQ == 7);
@@ -246,10 +261,10 @@ void *handle_partie(void *arg) {
     exit(EXIT_FAILURE);
   }
 
-//  pthread_t thread_grid;
-//  int *x = malloc(sizeof(int));
-//  *x = index_partie;
-//  pthread_create(&thread_grid, NULL, game_communication, x);
+  //  pthread_t thread_grid;
+  //  int *x = malloc(sizeof(int));
+  //  *x = index_partie;
+  //  pthread_create(&thread_grid, NULL, game_communication, x);
 
   pthread_t thread_grid_freq;
   int *y = malloc(sizeof(int));
@@ -261,7 +276,7 @@ void *handle_partie(void *arg) {
   *z = index_partie;
   pthread_create(&thread_tchat_communication, NULL, handle_tchat, z);
 
-  //pthread_join(thread_grid, NULL);
+  // pthread_join(thread_grid, NULL);
   pthread_join(thread_grid_freq, NULL);
   pthread_join(thread_tchat_communication, NULL);
 
@@ -372,9 +387,8 @@ void handle_client_poll(int client_socket) {
 
   result = ntohs(client_ready.entete);
   client_ready.CODEREQ = (result >> 3) & 0x1FFF;
-  client_ready.ID  =(result >> 1) & 0x3;
+  client_ready.ID = (result >> 1) & 0x3;
   client_ready.EQ = result & 0x1;
-
 
   if (client_ready.EQ == -1) {
     snprintf(buf, SIZE_MSG,
@@ -413,7 +427,6 @@ void handle_client_poll(int client_socket) {
   }
 }
 
-
 void *game_communication_freq(void *arg) {
   int partie_id = *(int *)arg;
 
@@ -428,7 +441,10 @@ void *game_communication_freq(void *arg) {
 
   GameMessage game_message;
 
-  while (!(parties[partie_id].players[0].dead) || !(parties[partie_id].players[1].dead) || !(parties[partie_id].players[2].dead) || !(parties[partie_id].players[3].dead) ) {
+  while (!(parties[partie_id].players[0].dead) ||
+         !(parties[partie_id].players[1].dead) ||
+         !(parties[partie_id].players[2].dead) ||
+         !(parties[partie_id].players[3].dead)) {
     time(&current_time);
 
     freq_grid.NUM = 0;
@@ -452,7 +468,6 @@ void *game_communication_freq(void *arg) {
 
     game_message.ACTION = resultat_a & 0x7;
 
-
     if (check_maj(&game_message, &parties[partie_id], &freq_grid) == -1)
       continue;
 
@@ -468,9 +483,8 @@ void *game_communication_freq(void *arg) {
         exit(EXIT_FAILURE);
       }
       start_time = current_time;
-    }else {
-      if (sendto(parties[partie_id].send_sock, &freq_grid,
-                 sizeof(FreqGrid), 0,
+    } else {
+      if (sendto(parties[partie_id].send_sock, &freq_grid, sizeof(FreqGrid), 0,
                  (struct sockaddr *)&parties[partie_id].multicast_addr,
                  sizeof(parties[partie_id].multicast_addr)) < 0) {
         perror("L'envoi de la grille a échoué");
@@ -492,9 +506,9 @@ void *game_communication_freq(void *arg) {
 
     if (players_alive <= 1) {
       TchatMessage end_msg = {0};
-      end_msg.env = htons( (((parties->mode_jeu == 1) ? 15 : 16) & 0x1FFF) << 3
-                        | ((id_alive & 0x3)<<1)
-                        | (((parties->mode_jeu == 2) ? id_alive : 0) & 0x1) ) ;
+      end_msg.env = htons((((parties->mode_jeu == 1) ? 15 : 16) & 0x1FFF) << 3 |
+                          ((id_alive & 0x3) << 1) |
+                          (((parties->mode_jeu == 2) ? id_alive : 0) & 0x1));
 
       for (int i = 0; i < MAX_CLIENTS; i++) {
         if (send(parties->clients_socket_tcp[i], &end_msg, sizeof(TchatMessage),
