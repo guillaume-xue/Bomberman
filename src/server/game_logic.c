@@ -174,12 +174,15 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
     add_freq(freq_grid, by, bx + 2, EXPLOSION);
   }
 
-  if (sendto(partie->send_sock, &partie->grid, sizeof(GridData), 0,
+  if (sendto(partie->send_sock, freq_grid, sizeof(FreqGrid), 0,
              (struct sockaddr *)&partie->multicast_addr,
              sizeof(partie->multicast_addr)) < 0) {
     perror("L'envoi de la grille a échoué");
     exit(EXIT_FAILURE);
   }
+  freq_grid->NUM = 0;
+  freq_grid->NB = 0;
+  memset(&freq_grid->DATA, 0, sizeof(freq_grid->DATA));
 
   sleep(1); // Temps d'affichage de l'explosion
 
@@ -218,12 +221,15 @@ void explode_bombe(Partie *partie, int id_player, FreqGrid *freq_grid){
 
   partie->players[id_player].b.set = false;
 
-  if (sendto(partie->send_sock, &partie->grid, sizeof(GridData), 0,
+  if (sendto(partie->send_sock, freq_grid, sizeof(FreqGrid), 0,
              (struct sockaddr *)&partie->multicast_addr,
              sizeof(partie->multicast_addr)) < 0) {
     perror("L'envoi de la grille a échoué");
     exit(EXIT_FAILURE);
   }
+  freq_grid->NUM = 0;
+  freq_grid->NB = 0;
+  memset(&freq_grid->DATA, 0, sizeof(freq_grid->DATA));
 }
 
 // Fonction appelée par le thread pour faire exploser la bombe
