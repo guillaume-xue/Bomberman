@@ -7,7 +7,6 @@ int tcp_socket; // socket pour la connexion TCP avec la partie
 char *color;
 int game_mode = 0;
 GridData game_grid;
-FreqMessage freq_message;
 
 int udp_socket; // socket pour la connexion UDP avec la partie
 struct sockaddr_in6 udp_listen_addr; // adresse du client en UDP
@@ -261,7 +260,6 @@ void *receive_tchat(void *arg) {
 
 void launch_game() {
   memset(&game_grid, 0, sizeof(GridData));
-  memset(&freq_message, 0, sizeof(FreqMessage));
 
   if (recvfrom(udp_socket, &game_grid, sizeof(GridData), 0,
                (struct sockaddr *)&diffuseur_addr, &difflen) < 0) {
