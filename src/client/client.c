@@ -195,6 +195,11 @@ void *receive_tchat(void *arg) {
       pthread_exit(NULL);
     }
 
+    uint16_t result = ntohs(tchat_message.env);
+    tchat_message.entete.CODEREQ = (result >> 3) & 0x1FFF;
+    tchat_message.entete.ID  = (result >> 1) & 0x3;
+    tchat_message.entete.EQ = result & 0x1;
+
     // Vérification fin de partie
     if (tchat_message.entete.CODEREQ == 15 ||
         tchat_message.entete.CODEREQ == 16) {
@@ -262,9 +267,11 @@ void launch_game() {
         break;
       } else if (a == SUBMIT) {
         memset(&my_msg, 0, sizeof(TchatMessage));
-        my_msg.entete.CODEREQ = atoi(&l->data[0]);
-        my_msg.entete.ID = player_id;
-        my_msg.entete.EQ = (game_mode == 2) ? team_number : -1;
+        
+        my_msg.env = htons((atoi(&l->data[0])& 0x1FFF) << 3
+        | ((player_id & 0x3) << 1)
+        | (((game_mode == 2) ? team_number : -1) & 0x1));
+
         my_msg.LEN = strlen(l->data);
         strcpy(my_msg.DATA, l->data);
 
@@ -276,11 +283,6 @@ void launch_game() {
         memset(&my_action, 0, sizeof(GameMessage));
         my_action.entete = htons((((game_mode+4) & 0x1FFF) << 3)| ((player_id << 1) & 0x3) | (((game_mode == 2) ? team_number : -1) & 0x1) );
         my_action.num_action = htons((0 & 0x1FFF) << 3 | (a & 0x7));
-
-        // my_action.CODEREQ = game_mode + 4;
-        // my_action.ID = player_id;
-        // my_action.EQ = (game_mode == 2) ? team_number : -1;
-        // my_action.ACTION = a;
 
         if (sendto(udp_socket, &my_action, sizeof(GameMessage), 0,
                    (struct sockaddr *)&diffuseur_addr, difflen) < 0) {

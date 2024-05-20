@@ -131,6 +131,11 @@ void *handle_tchat_clientX(void *arg) {
       return NULL;
     }
 
+    uint16_t result = ntohs(msg.env);
+    msg.entete.CODEREQ = (result >> 3) & 0x1FFF;
+    msg.entete.ID = (result >> 1) & 0x3;;
+    msg.entete.EQ = result & 0x1;
+
     bool sept = (msg.entete.CODEREQ == 7);
     msg.entete.CODEREQ = (sept) ? 13 : 14;
     if (sept) { // à tout le monde
@@ -367,8 +372,6 @@ void handle_client_poll(int client_socket) {
              client_ready.EQ, index_partie);
   }
 
-  // printf("%s\n", buf);
-
   pthread_mutex_lock(&mutex_parties[index_partie]);
   printf("Il reste %d places dans la partie n.%d %s\n",
          MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
@@ -442,10 +445,10 @@ void *game_communication(void *arg) {
 
     if (players_alive <= 1) {
       TchatMessage end_msg = {0};
-      end_msg.entete.CODEREQ = (parties->mode_jeu == 1) ? 15 : 16;
-      end_msg.entete.ID = id_alive;
-      // Gestion eq dans le cas des equipes sinon on ignore
-      end_msg.entete.EQ = (parties->mode_jeu == 2) ? id_alive : 0;
+      end_msg.env = htons( (((parties->mode_jeu == 1) ? 15 : 16) & 0x1FFF) << 3) 
+                        | ((id_alive & 0x3)<<1) 
+                        | (((parties->mode_jeu == 2) ? id_alive : 0) & 0x1) ;
+
       for (int i = 0; i < MAX_CLIENTS; i++) {
         if (send(parties->clients_socket_tcp[i], &end_msg, sizeof(TchatMessage),
                  0) < 0) {
@@ -455,7 +458,6 @@ void *game_communication(void *arg) {
       // break;
       exit(EXIT_SUCCESS);
     }
-    // sleep(INTERVALLE_ENVOI);
   }
   if (DEBUG) {
     printf(" Fin de la partie %d le gagnant est : ", partie_id);
