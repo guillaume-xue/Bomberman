@@ -176,12 +176,8 @@ void *receive_grid(void *arg) {
     } else if (recu == 0) {
       printf("Connexion fermée par le serveur.\n");
       break;
-    } else {
-      // alarm(TIMEOUT_SECONDS);
     }
   }
-  // close(udp_socket);
-  // exit(EXIT_SUCCESS);
   return NULL;
 }
 
@@ -278,10 +274,13 @@ void launch_game() {
         }
       } else {
         memset(&my_action, 0, sizeof(GameMessage));
-        my_action.CODEREQ = game_mode + 4;
-        my_action.ID = player_id;
-        my_action.EQ = (game_mode == 2) ? team_number : -1;
-        my_action.ACTION = a;
+        my_action.entete = htons((((game_mode+4) & 0x1FFF) << 3)| ((player_id << 1) & 0x3) | (((game_mode == 2) ? team_number : -1) & 0x1) );
+        my_action.num_action = htons((0 & 0x1FFF) << 3 | (a & 0x7));
+
+        // my_action.CODEREQ = game_mode + 4;
+        // my_action.ID = player_id;
+        // my_action.EQ = (game_mode == 2) ? team_number : -1;
+        // my_action.ACTION = a;
 
         if (sendto(udp_socket, &my_action, sizeof(GameMessage), 0,
                    (struct sockaddr *)&diffuseur_addr, difflen) < 0) {

@@ -409,6 +409,15 @@ void *game_communication(void *arg) {
       exit(EXIT_FAILURE);
     }
 
+    uint16_t resultat_e = ntohs(game_message.entete);
+    uint16_t resultat_a = ntohs(game_message.num_action);
+    game_message.CODEREQ = (resultat_e >> 3) & 0x1FFF;
+    game_message.ID = (resultat_e >> 1) & 0x3;
+    game_message.EQ = resultat_e & 0x1;
+
+    game_message.ACTION = resultat_a & 0x7;
+
+
     if (check_maj(&game_message, &parties[partie_id]) == -1)
       continue;
 
