@@ -453,7 +453,7 @@ void *game_communication_freq(void *arg) {
     game_message.ACTION = resultat_a & 0x7;
 
 
-    if (check_maj(&game_message, &parties[partie_id]) == -1)
+    if (check_maj(&game_message, &parties[partie_id], &freq_grid) == -1)
       continue;
 
     freq_grid.NB = freq_grid.NB / 3;
