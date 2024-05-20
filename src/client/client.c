@@ -56,10 +56,7 @@ void choose_game_mode() {
   }
 
   clear_term();
-  //EnteteMessage request;
   uint16_t request;
-  //memset(&request, 0, sizeof(EnteteMessage));
-  //request.CODEREQ = game_mode;
   request = htons((game_mode & 0x1FFF) << 3 | (0x0 & 0x3) << 1 | (0x0 & 0x1));
 
   if (send(tcp_socket, &request, sizeof(request), 0) < 0) {
@@ -151,9 +148,10 @@ void im_ready() {
   GameMessage ready;
   memset(&ready, 0, sizeof(GameMessage));
 
-  ready.CODEREQ = game_mode + 2;
-  ready.ID = player_id;
-  ready.EQ = (game_mode == 2) ? team_number : -1;
+  ready.entete = htons(((game_mode+2) & 0x1FFF) <<3 | (player_id & 0x3) <<1 |  (((game_mode == 2) ? team_number : -1) & 0X1 ));
+  // ready.CODEREQ = game_mode + 2;
+  // ready.ID = player_id;
+  // ready.EQ = (game_mode == 2) ? team_number : -1;
 
   if (send(tcp_socket, &ready, sizeof(GameMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");

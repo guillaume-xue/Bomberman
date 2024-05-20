@@ -324,8 +324,6 @@ void *handle_client(void *arg) {
 
 // Version poll
 void handle_client_poll(int client_socket) {
-  //EnteteMessage received_message;
-  //memset(&received_message, 0, sizeof(EnteteMessage));
   uint16_t received_message;
 
   if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
@@ -334,7 +332,7 @@ void handle_client_poll(int client_socket) {
   }
 
   uint16_t result = ntohs(received_message);
-   uint16_t codereq = (result >> 3) & 0x1FFF;
+  uint16_t codereq = (result >> 3) & 0x1FFF;
 
   int index_partie = join_or_create(client_socket, codereq);
 
@@ -348,6 +346,12 @@ void handle_client_poll(int client_socket) {
 
   char buf[SIZE_MSG];
   memset(buf, 0, sizeof(buf));
+
+  result = ntohs(client_ready.entete);
+  client_ready.CODEREQ = (result >> 3) & 0x1FFF;
+  client_ready.ID  =(result >> 1) & 0x3;
+  client_ready.EQ = result & 0x1;
+
 
   if (client_ready.EQ == -1) {
     snprintf(buf, SIZE_MSG,

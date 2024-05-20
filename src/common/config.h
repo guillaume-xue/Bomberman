@@ -39,6 +39,8 @@ typedef struct pos {
 
 // WARNING : Faites attention au passage de 8191 à 0.
 typedef struct {
+  uint16_t entete;
+  uint16_t num_action;
   int CODEREQ; // 5: 1v3, 6: 2v2
   short ID;    // ID du joueur
   short EQ;      // numéro de l'équipe du joueur si CODEREQ = 6
