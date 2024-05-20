@@ -148,7 +148,10 @@ void im_ready() {
   GameMessage ready;
   memset(&ready, 0, sizeof(GameMessage));
 
-  ready.entete = htons(((game_mode+2) & 0x1FFF) <<3 | (player_id & 0x3) <<1 |  (((game_mode == 2) ? team_number : -1) & 0X1 ));
+  ready.entete = htons(((game_mode+2) & 0x1FFF) <<3 
+  | (player_id & 0x3) <<1 
+  |  (((game_mode == 2) ? team_number : -1) & 0X1 ));
+  
   // ready.CODEREQ = game_mode + 2;
   // ready.ID = player_id;
   // ready.EQ = (game_mode == 2) ? team_number : -1;
@@ -281,7 +284,9 @@ void launch_game() {
         }
       } else {
         memset(&my_action, 0, sizeof(GameMessage));
-        my_action.entete = htons((((game_mode+4) & 0x1FFF) << 3)| ((player_id << 1) & 0x3) | (((game_mode == 2) ? team_number : -1) & 0x1) );
+        my_action.entete = htons((((game_mode+4) & 0x1FFF) << 3)
+        | ((player_id & 0x3 ) <<1 ) 
+        | (((game_mode == 2) ? team_number : -1) & 0x1) );
         my_action.num_action = htons((0 & 0x1FFF) << 3 | (a & 0x7));
 
         if (sendto(udp_socket, &my_action, sizeof(GameMessage), 0,

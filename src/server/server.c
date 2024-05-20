@@ -445,9 +445,9 @@ void *game_communication(void *arg) {
 
     if (players_alive <= 1) {
       TchatMessage end_msg = {0};
-      end_msg.env = htons( (((parties->mode_jeu == 1) ? 15 : 16) & 0x1FFF) << 3) 
+      end_msg.env = htons( (((parties->mode_jeu == 1) ? 15 : 16) & 0x1FFF) << 3
                         | ((id_alive & 0x3)<<1) 
-                        | (((parties->mode_jeu == 2) ? id_alive : 0) & 0x1) ;
+                        | (((parties->mode_jeu == 2) ? id_alive : 0) & 0x1) ) ;
 
       for (int i = 0; i < MAX_CLIENTS; i++) {
         if (send(parties->clients_socket_tcp[i], &end_msg, sizeof(TchatMessage),
