@@ -5,7 +5,7 @@
 ## Commande :
 ### - Pour compiler les fichiers
 ```bash
-make
+make all
 ```
 ### - Pour lancer le client
 ```bash
