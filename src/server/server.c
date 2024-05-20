@@ -54,6 +54,18 @@ int join_or_create(int client_socket, int mode_jeu) {
 // Fonction pour envoyer les informations de la partie au joueur
 void send_game_s_info(Partie *partie, int client_socket) {
   ServerMessage server_message;
+  memset(&server_message, 0, sizeof(ServerMessage));
+  // uint16_t codereq =  (parties[partie->partie_id].mode_jeu == 1) ? 9 : 10;
+  // uint8_t id = parties[partie->partie_id].nb_joueurs;
+  // uint8_t eq = parties[partie->partie_id].mode_jeu == 1
+  //                         ? 1
+  //                         : (id % 2) + 1;
+
+  // if(DEBUG) printf("send_game id : %d",id);
+  // server_message.info = htons( ((codereq & 0x1FFF) << 3) 
+  // | (id & 0x3) << 1
+  // | (eq & 0x1) );
+  
   server_message.code_req = (parties[partie->partie_id].mode_jeu == 1) ? 9 : 10;
 
   server_message.id = parties[partie->partie_id].nb_joueurs;

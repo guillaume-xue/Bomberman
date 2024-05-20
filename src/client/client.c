@@ -87,6 +87,10 @@ void suscribe_multicast() {
     printf("La connexion TCP a été fermée par le serveur.\n");
     exit(EXIT_SUCCESS); // Ou gérer la fermeture selon l'application
   } else {
+    // u_int16_t res = ntohs(serv_message.info);
+    // serv_message.id = (res >> 1) & 0x3;
+    // serv_message.eq = res & 0x1;
+
     player_id = serv_message.id;
 
     team_number = serv_message.eq;

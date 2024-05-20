@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <time.h>
 
-#define TCP_PORT 8082
+#define TCP_PORT 8081
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
 #define INTERVALLE_ENVOI 1
@@ -84,6 +84,7 @@ typedef struct {
 } GridData;
 
 typedef struct {
+  uint16_t info;
   int code_req;
   short id;
   short eq;
