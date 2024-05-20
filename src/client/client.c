@@ -86,9 +86,6 @@ void suscribe_multicast() {
     printf("La connexion TCP a été fermée par le serveur.\n");
     exit(EXIT_SUCCESS); // Ou gérer la fermeture selon l'application
   } else {
-    // u_int16_t res = ntohs(serv_message.info);
-    // serv_message.id = (res >> 1) & 0x3;
-    // serv_message.eq = res & 0x1;
 
     player_id = serv_message.id;
 
@@ -150,6 +147,7 @@ void suscribe_multicast() {
   }
 }
 
+// Joueur est prêt à jouer
 void im_ready() {
   GameMessage ready;
   memset(&ready, 0, sizeof(GameMessage));
@@ -157,10 +155,6 @@ void im_ready() {
   ready.entete = htons(((game_mode+2) & 0x1FFF) <<3
   | (player_id & 0x3) <<1
   |  (((game_mode == 2) ? team_number : -1) & 0X1 ));
-
-  // ready.CODEREQ = game_mode + 2;
-  // ready.ID = player_id;
-  // ready.EQ = (game_mode == 2) ? team_number : -1;
 
   if (send(tcp_socket, &ready, sizeof(GameMessage), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");
@@ -175,19 +169,21 @@ void im_ready() {
            color, player_id, "\033[0m", team_number);
 }
 
+// Mise à jour de la grille
 void update_grid_freq(FreqGrid *freq_grid) {
   for (int i = 0; i < freq_grid->NB; ++i) {
     game_grid.cases[freq_grid->DATA[i*3 + 1]][freq_grid->DATA[i*3]] = freq_grid->DATA[i*3 + 2];
   }
 }
 
-void *receive_grid_freq(void *arg) {
-  uint16_t buffer[sizeof(FreqGrid) > sizeof(GridData) ? sizeof(FreqGrid) : sizeof(GridData)];
+// Réception de la grille
+void *receive_grid_freq() {
+  uint16_t buffer[sizeof(GridData)];
 
   while (1) {
     pthread_mutex_lock(&mutex_partie);
     memset(buffer, 0, sizeof(buffer));
-    int recv_len = recvfrom(udp_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&diffuseur_addr, &difflen);
+    ssize_t recv_len = recvfrom(udp_socket, buffer, sizeof(buffer), 0, (struct sockaddr *)&diffuseur_addr, &difflen);
     if (recv_len < 0) {
       perror("La réception des données a échoué");
       exit(EXIT_FAILURE);
@@ -205,10 +201,11 @@ void *receive_grid_freq(void *arg) {
   return NULL;
 }
 
-void *receive_tchat(void *arg) {
+// Réception des messages du tchat
+void *receive_tchat() {
   TchatMessage tchat_message;
   while (1) {
-    int recu = recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0);
+    ssize_t recu = recv(tcp_socket, &tchat_message, sizeof(TchatMessage), 0);
     if (recu <= 0) {
       if (recu < 0) {
         perror("Tchat client : La réception du message a échoué");
@@ -259,6 +256,7 @@ void *receive_tchat(void *arg) {
   return NULL;
 }
 
+// Fonction pour lancer le jeu
 void launch_game() {
   memset(&game_grid, 0, sizeof(GridData));
 

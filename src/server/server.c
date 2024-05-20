@@ -6,7 +6,6 @@ Partie parties[MAX_PARTIES];
 
 pthread_mutex_t mutex_parties[MAX_PARTIES];
 pthread_mutex_t mutex_place = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond_partie = PTHREAD_COND_INITIALIZER;
 
 void add_partie(int client_socket, int mode_jeu) {
   int i = nb_partie;
@@ -53,16 +52,6 @@ int join_or_create(int client_socket, int mode_jeu) {
 void send_game_s_info(Partie *partie, int client_socket) {
   ServerMessage server_message;
   memset(&server_message, 0, sizeof(ServerMessage));
-  // uint16_t codereq =  (parties[partie->partie_id].mode_jeu == 1) ? 9 : 10;
-  // uint8_t id = parties[partie->partie_id].nb_joueurs;
-  // uint8_t eq = parties[partie->partie_id].mode_jeu == 1
-  //                         ? 1
-  //                         : (id % 2) + 1;
-
-  // if(DEBUG) printf("send_game id : %d",id);
-  // server_message.info = htons( ((codereq & 0x1FFF) << 3)
-  // | (id & 0x3) << 1
-  // | (eq & 0x1) );
 
   server_message.code_req = (parties[partie->partie_id].mode_jeu == 1) ? 9 : 10;
 
@@ -168,7 +157,6 @@ void *handle_tchat_clientX(void *arg) {
     uint16_t result = ntohs(msg.env);
     msg.entete.CODEREQ = (result >> 3) & 0x1FFF;
     msg.entete.ID = (result >> 1) & 0x3;
-    ;
     msg.entete.EQ = result & 0x1;
 
     bool sept = (msg.entete.CODEREQ == 7);
@@ -279,7 +267,6 @@ void *handle_partie(void *arg) {
   *z = index_partie;
   pthread_create(&thread_tchat_communication, NULL, handle_tchat, z);
 
-  // pthread_join(thread_grid, NULL);
   pthread_join(thread_grid_freq, NULL);
   pthread_join(thread_tchat_communication, NULL);
 
@@ -287,78 +274,6 @@ void *handle_partie(void *arg) {
     printf(" Lancement de toute les gestions de parties partie : %d ",
            index_partie);
   }
-  free(arg);
-  return NULL;
-}
-
-void *handle_client(void *arg) {
-  int client_socket = *(int *)arg;
-
-  EnteteMessage received_message;
-  memset(&received_message, 0, sizeof(EnteteMessage));
-
-  // Réception du message depuis le client
-  if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
-    perror("La réception du message a échoué");
-    free(arg);
-    exit(EXIT_FAILURE);
-  }
-
-  int index_partie = join_or_create(
-      client_socket,
-      received_message.CODEREQ); // index_partie est l'index de la partie où le
-                                 // client a rejoint
-
-  GameMessage client_ready;
-  memset(&client_ready, 0, sizeof(GameMessage));
-
-  if (recv(client_socket, &client_ready, sizeof(GameMessage), 0) < 0) {
-    perror("La réception du message a échoué");
-    free(arg);
-    exit(EXIT_FAILURE);
-  }
-
-  char buf[SIZE_MSG];
-  memset(buf, 0, sizeof(buf));
-
-  if (client_ready.EQ == -1) {
-    snprintf(buf, SIZE_MSG,
-             "\nLe client devient : %sJoueur n.%d%s et rejoint la partie n.%d "
-             "en mode : SOLO (1v3).",
-             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
-             index_partie);
-  } else {
-    snprintf(buf, SIZE_MSG,
-             "\nLe client devient : %sJoueur n.%d%s dans l'équipe %d et "
-             "rejoint la partie n.%d en mode : MULTIJOUEUR (2v2).",
-             id_to_color(client_ready.ID), client_ready.ID, "\33[0m",
-             client_ready.EQ, index_partie);
-  }
-
-  printf("%s\n", buf);
-
-  pthread_mutex_lock(&mutex_parties[index_partie]);
-  printf("Il reste %d places dans la partie n.%d %s\n",
-         MAX_CLIENTS - parties[index_partie].nb_joueurs, index_partie,
-         (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0)
-             ? "\n\033[31m\nNous sommes au complet, la partie peut commencer "
-               "!!\033[0m\n"
-             : "\n");
-
-  if (MAX_CLIENTS - parties[index_partie].nb_joueurs == 0) {
-    pthread_t thread_partie;
-    int *x = malloc(sizeof(int));
-    if (x == NULL) {
-      perror("Erreur debut de partie");
-      free(arg);
-      exit(EXIT_FAILURE);
-    }
-    *x = index_partie;
-    pthread_create(&thread_partie, NULL, handle_partie, x);
-    pthread_join(thread_partie, NULL);
-  } else
-    pthread_mutex_unlock(&mutex_parties[index_partie]);
-
   free(arg);
   return NULL;
 }

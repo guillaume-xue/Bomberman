@@ -1,13 +1,10 @@
 #include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-
 #include "grid.h"
 
 int joueur_id;
 int joueur_mode;
-pos *p;
 char notif[TEXT_SIZE];
 
 void free_board(board *board) { free(board->grid); }
@@ -100,7 +97,7 @@ void refresh_game(board *b, line *l) {
     mvaddch(0, i, '-');
   attron(COLOR_PAIR(joueur_id));
   attron(A_BOLD);
-  mvprintw(0, len_player, buf_player);
+  mvprintw(0, (int)len_player, buf_player);
   attroff(A_BOLD);
   attroff(COLOR_PAIR(joueur_id));
   for (int i = len_player + strlen(buf_player); i < FIELD_WIDTH + 1; i++)
@@ -249,10 +246,9 @@ ACTION control(line *l) {
 }
 
 
-int print_grid(GridData gridData, line *l) {
+void print_grid(GridData gridData, line *l) {
   board *b = grid_to_board(gridData);
   refresh_game(b, l);
-  return 0;
 }
 
 char get_grid_char(GridData gridData, int i, int j) {
@@ -298,34 +294,6 @@ board *grid_to_board(GridData gridData) {
   return b;
 }
 
-pos *init_position(GridData gridData) {
-  pos *p = malloc(sizeof(pos));
-  check_malloc(p);
-
-  switch (joueur_id) {
-  case 1:
-    p->x = 0;
-    p->y = 0;
-    break;
-  case 2:
-    p->x = gridData.width - 3;
-    p->y = 0;
-    break;
-  case 3:
-    p->x = 0;
-    p->y = gridData.height - 2;
-    break;
-  case 4:
-    p->x = gridData.width - 3;
-    p->y = gridData.height - 2;
-    break;
-  default:
-    break;
-  }
-
-  return p;
-}
-
 int clear_grid() {
   clear();
   refresh();
@@ -346,8 +314,6 @@ line *init_grid(GridData gridData, int id, int game_mode) {
   memset(l->tchatbox.conv, 0, TEXT_SIZE);
   l->tchatbox.i = 0;
   l->cursor = 0;
-
-  p = init_position(gridData);
 
   // NOTE: All ncurses operations (getch, mvaddch, refresh, etc.) must be done
   // on the same thread.

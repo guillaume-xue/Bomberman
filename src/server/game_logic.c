@@ -15,7 +15,6 @@ void set_grid(Partie *partie, int x, int y, ContenuCase c) {
 void player_dying(Partie *partie, int id) {
   partie->players[id].dead = true;
   partie->nb_joueurs--;
-  // set_grid(partie, partie->players[id].p.x, partie->players[id].p.y, CASE_VIDE);
 }
 
 void clear_grid(Partie *partie, int x, int y) {
@@ -261,23 +260,6 @@ int place_bomb(Partie *partie, int id_player, pos p, FreqGrid *freq_grid) {
   }
 
   return 0;
-}
-
-void move_player(Partie *partie, int id, int dx, int dy) {
-  pos p = partie->players[id].p;
-  int new_x = p.x + dx;
-  int new_y = p.y + dy;
-
-  if (is_movable(partie, new_x, new_y) == false)
-    return;
-
-  if (partie->grid.cases[new_x][new_y] == MUR_DESTRUCTIBLE)
-    return;
-
-  partie->grid.cases[p.x][p.y] = CASE_VIDE;
-  partie->players[id].p.x = new_x;
-  partie->players[id].p.y = new_y;
-  partie->grid.cases[new_x][new_y] = id + 5;
 }
 
 // On vérifie si l'action du joueur est legit

@@ -17,7 +17,6 @@
 #define TCP_PORT 8081
 #define MULTICAST_PORT 9000
 #define SIZE_MSG 1024
-#define INTERVALLE_ENVOI 1
 #define TEXT_SIZE 255
 #define NB_WALLS 30
 #define MAX_CLIENTS 4
@@ -25,12 +24,10 @@
 #define MAX_CASES 50
 #define FIELD_WIDTH 30  // la longueur réelle du terrain de jeu
 #define FIELD_HEIGHT 15 // la hauteur réelle du terrain de jeu
-#define TCHATBOX_HEIGHT 15 
-#define TIMEOUT_SECONDS 10
+#define TCHATBOX_HEIGHT 15
 #define DEBUG 1
 
 typedef enum ACTION { UP = 0, DOWN = 1, LEFT = 2, RIGHT = 3, BOMB = 4, QUIT = 5, NONE = 6, SUBMIT = 7 } ACTION;
-enum colors { GREEN, YELLOW, MAGENTA, CYAN };
 
 typedef struct pos {
   int x;
