@@ -94,7 +94,7 @@ void init_multicast_socket(Partie *partie) {
   inet_pton(AF_INET6, multicast_group, &partie->multicast_addr.sin6_addr);
   partie->multicast_addr.sin6_port = htons(MULTICAST_PORT + partie->partie_id);
 
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("eth0");
   if (ifindex == 0) {
     perror("if_nametoindex");
     close(partie->send_sock);
@@ -324,15 +324,19 @@ void *handle_client(void *arg) {
 
 // Version poll
 void handle_client_poll(int client_socket) {
-  EnteteMessage received_message;
-  memset(&received_message, 0, sizeof(EnteteMessage));
+  //EnteteMessage received_message;
+  //memset(&received_message, 0, sizeof(EnteteMessage));
+  uint16_t received_message;
 
   if (recv(client_socket, &received_message, sizeof(EnteteMessage), 0) < 0) {
     perror("poll : La réception du message a échoué");
     return;
   }
 
-  int index_partie = join_or_create(client_socket, received_message.CODEREQ);
+  uint16_t result = ntohs(received_message);
+   uint16_t codereq = (result >> 3) & 0x1FFF;
+
+  int index_partie = join_or_create(client_socket, codereq);
 
   GameMessage client_ready;
   memset(&client_ready, 0, sizeof(GameMessage));

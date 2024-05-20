@@ -56,11 +56,13 @@ void choose_game_mode() {
   }
 
   clear_term();
-  EnteteMessage request;
-  memset(&request, 0, sizeof(EnteteMessage));
-  request.CODEREQ = game_mode;
+  //EnteteMessage request;
+  uint16_t request;
+  //memset(&request, 0, sizeof(EnteteMessage));
+  //request.CODEREQ = game_mode;
+  request = htons((game_mode & 0x1FFF) << 3 | (0x0 & 0x3) << 1 | (0x0 & 0x1));
 
-  if (send(tcp_socket, &request, sizeof(EnteteMessage), 0) < 0) {
+  if (send(tcp_socket, &request, sizeof(request), 0) < 0) {
     perror("L'envoi de la demande de jeu a échoué");
     exit(EXIT_FAILURE);
   }
@@ -124,7 +126,7 @@ void suscribe_multicast() {
   }
 
   /* initialisation de l'interface locale autorisant le multicast IPv6 */
-  int ifindex = if_nametoindex("en0");
+  int ifindex = if_nametoindex("eth0");
   if (ifindex == 0)
     perror("if_nametoindex");
 
